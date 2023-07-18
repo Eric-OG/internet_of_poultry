@@ -11,7 +11,7 @@
 #endif
 
 #ifndef MESH_CHANNEL
-#define MESH_CHANNEL 6
+#define MESH_CHANNEL 1
 #endif
 
 #ifndef AP_SSID

@@ -18,8 +18,7 @@ void setup() {
 
   // ---- Mesh configs ----
   mesh.setDebugMsgTypes(ERROR | DEBUG | CONNECTION | COMMUNICATION | REMOTE);
-  mesh.init(MESH_NAME, MESH_PASSWORD, &scheduler, MESH_PORT, WIFI_AP_STA,
-            MESH_CHANNEL);
+  mesh.init(MESH_NAME, MESH_PASSWORD, &scheduler, MESH_PORT, WIFI_AP_STA, MESH_CHANNEL);
   mesh.setName(node_name);
 
   // ---- Tasks configs ----
@@ -32,13 +31,10 @@ void setup() {
   });
 
   mesh.onReceive([](String &from, String &msg) {
-    Serial.printf("Received message by name from: %s, %s\n", from.c_str(),
-                  msg.c_str());
+    Serial.printf("Received message by name from: %s, %s\n", from.c_str(), msg.c_str());
   });
 
   mesh.onChangedConnections([]() { Serial.printf("Changed connection\n"); });
-
-  Serial.println("Name is " + String(NODE_NAME));
 }
 
 void loop() { mesh.update(); }
