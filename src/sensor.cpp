@@ -19,6 +19,7 @@ void setup() {
   // ---- Mesh configs ----
   mesh.setDebugMsgTypes(ERROR | DEBUG | CONNECTION | COMMUNICATION | REMOTE);
   mesh.init(MESH_NAME, MESH_PASSWORD, &scheduler, MESH_PORT, WIFI_AP_STA, MESH_CHANNEL);
+  mesh.setContainsRoot(true);  // All nodes should know that the mesh contains a root
   mesh.setName(node_name);
 
   // ---- Tasks configs ----

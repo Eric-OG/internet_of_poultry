@@ -1,10 +1,4 @@
 {
-  "files.associations": {
-    "*.jinja": "jinja",
-    "test1": "c",
-    "map": "cpp",
-    "string": "cpp"
-  },
-  "C_Cpp.clang_format_fallbackStyle": "{ BasedOnStyle: Google, IncludeBlocks: Merge, KeepEmptyLinesAtTheStartOfBlocks: true, ColumnLimit: 90 }",
+  "C_Cpp.clang_format_fallbackStyle": "{ BasedOnStyle: Google, IncludeBlocks: Merge, KeepEmptyLinesAtTheStartOfBlocks: true, ColumnLimit: 90, UseTab: Never, IndentWidth: 2, TabWidth: 2 }",
   "editor.formatOnSave": true
 }

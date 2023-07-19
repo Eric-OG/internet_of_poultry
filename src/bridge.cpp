@@ -10,12 +10,14 @@ void meshReceiveCallback(const uint32_t &from, const String &msg);
 void mqttReceiveCallback(char *topic, byte *payload, unsigned int length);
 void checkIpChange();
 IPAddress getlocalIP();
+String jsonify_topology();
 
 // Global variables
 IPAddress myIP(0, 0, 0, 0);
 WiFiClient wifiClient;
 PubSubClient mqttClient(MQTT_BROKER, MQTT_PORT, mqttReceiveCallback, wifiClient);
 namedMesh mesh;
+String node_name = NODE_NAME;
 
 void setup() {
   // ---- Serial configs ----
@@ -28,10 +30,9 @@ void setup() {
   mesh.onReceive(&meshReceiveCallback);
   mesh.stationManual(AP_SSID, AP_PASSWORD);
   mesh.setHostname(NODE_NAME);
-  // Bridge node, should (in most cases) be a root node.
-  mesh.setRoot(true);
-  // All nodes should know that the mesh contains a root
-  mesh.setContainsRoot(true);
+  mesh.setRoot(true);          // Bridge node, should (in most cases) be a root node.
+  mesh.setContainsRoot(true);  // All nodes should know that the mesh contains a root
+  mesh.setName(node_name);
 }
 
 void loop() {
@@ -49,6 +50,7 @@ void checkIpChange() {
 
     if (mqttClient.connect(MESH_NAME)) {
       mqttClient.publish(DEBUG_TOPIC, "Ready!");
+      mqttClient.subscribe(TOPOLOGY_REQUEST);
     }
   }
 }
@@ -61,5 +63,27 @@ void meshReceiveCallback(const uint32_t &from, const String &msg) {
 }
 
 void mqttReceiveCallback(char *topic, uint8_t *payload, unsigned int length) {
-  Serial.printf("MQTT message received");
+  Serial.println("MQTT message received");
+  Serial.println("topic is: " + String(topic));
+
+  if (String(topic) == String(TOPOLOGY_REQUEST)) {
+    String topology_json = jsonify_topology();
+    Serial.println(topology_json);
+    mqttClient.publish(TOPOLOGY_RESPONSE, topology_json.c_str());
+  }
+}
+
+String jsonify_topology() {
+  DynamicJsonDocument root_doc(2048);
+  JsonObject mesh_tree = root_doc.createNestedObject("mesh_tree");
+  JsonObject name_map = root_doc.createNestedObject("name_map");
+
+  DynamicJsonDocument tree_doc(1024);
+  deserializeJson(tree_doc, mesh.subConnectionJson());
+  mesh_tree.set(tree_doc.as<JsonObject>());
+
+  JsonObject name_map_json = mesh.addressToNameJson();
+  name_map.set(name_map_json);
+
+  return root_doc.as<String>();
 }

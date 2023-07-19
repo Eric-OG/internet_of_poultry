@@ -34,6 +34,14 @@
 #define DEBUG_TOPIC "internet-of-poultry/debug"
 #endif
 
+#ifndef TOPOLOGY_REQUEST
+#define TOPOLOGY_REQUEST "internet-of-poultry/topology_request"
+#endif
+
+#ifndef TOPOLOGY_RESPONSE
+#define TOPOLOGY_RESPONSE "internet-of-poultry/topology_response"
+#endif
+
 #ifndef BAUD_RATE
 #define BAUD_RATE 115200
 #endif
