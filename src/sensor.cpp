@@ -73,11 +73,11 @@ String serializeMeasurements(Measurements meas) {
 }
 
 void meshReceiveCallback(const uint32_t &from, const String &msg) {
-  DEBUG &&Serial.printf("Received message from %u, msg: %s\n", from, msg.c_str());
+  Log(DEBUG, "Received message from %u, msg: %s\n", from, msg.c_str());
 }
 
 void meshReceiveNamedCallback(const String &from, const String &msg) {
-  DEBUG &&Serial.printf("Received message from %u, msg: %s\n", from, msg.c_str());
+  Log(DEBUG, "Received message from %u, msg: %s\n", from, msg.c_str());
 }
 
-void meshChangeConnCallback() { DEBUG &&Serial.printf("Changed connection\n"); }
+void meshChangeConnCallback() { Log(DEBUG, "Changed connections!"); }

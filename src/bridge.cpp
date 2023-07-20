@@ -52,12 +52,13 @@ void checkIpChange() {
 
   if (bridge_IP != current_local_ip) {
     bridge_IP = current_local_ip;
-    DEBUG &&Serial.println("Bridge local is " + bridge_IP.toString());
+    Log(DEBUG, "Bridge local IP is %s \n", bridge_IP.toString());
 
     if (mqttClient.connect(MESH_NAME)) {
-      if (DEBUG) {
-        String msg = "Ready! Bridge local IP is " + bridge_IP.toString();
-        mqttClient.publish(DEBUG_TOPIC, msg.c_str());
+      if (MQTT_DEBUG) {
+        String msg = "Ready! Bridge local IP is %s" + bridge_IP.toString();
+        mqttClient.publish(DEBUG_TOPIC, "Ready! Bridge local IP is %s \n",
+                           bridge_IP.toString());
       }
 
       mqttClient.subscribe(TOPOLOGY_REQUEST);
@@ -78,14 +79,14 @@ void meshReceiveCallback(const uint32_t &from, const String &msg) {
     mqttClient.publish(MEASUREMENTS_TOPIC, (doc.as<String>()).c_str());
   }
 
-  DEBUG &&Serial.printf("Received message from %u, msg: %s\n", from, msg.c_str());
+  Log(DEBUG, "Received message from %u, msg: %s\n", from, msg.c_str());
   mqttClient.publish(MEASUREMENTS_TOPIC, msg.c_str());
 }
 
 void meshChangeConnCallback() { publish_topology(); }
 
 void mqttReceiveCallback(char *topic, uint8_t *payload, unsigned int length) {
-  DEBUG &&Serial.println("MQTT message received: " + String(*payload));
+  Log(DEBUG, "MQTT message received: %s \n", String(*payload));
 
   if (String(topic) == String(TOPOLOGY_REQUEST)) {
     publish_topology();
@@ -95,7 +96,7 @@ void mqttReceiveCallback(char *topic, uint8_t *payload, unsigned int length) {
 void publish_topology() {
   String topology_json = jsonify_topology();
   mqttClient.publish(TOPOLOGY_RESPONSE, topology_json.c_str());
-  DEBUG &&Serial.println(topology_json);
+  Log(DEBUG, "Mesh topology is: %s \n", topology_json);
 }
 
 String jsonify_topology() {

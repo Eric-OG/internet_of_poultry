@@ -58,6 +58,6 @@
 #define BRIDGE_NAME "default_bridge_name"
 #endif
 
-#ifndef DEBUG
-#define DEBUG 0
+#ifndef MQTT_DEBUG
+#define MQTT_DEBUG 0
 #endif
