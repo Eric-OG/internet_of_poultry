@@ -42,10 +42,22 @@
 #define TOPOLOGY_RESPONSE "internet-of-poultry/topology_response"
 #endif
 
+#ifndef MEASUREMENTS_TOPIC
+#define MEASUREMENTS_TOPIC "internet-of-poultry/measurements"
+#endif
+
 #ifndef BAUD_RATE
 #define BAUD_RATE 115200
 #endif
 
 #ifndef NODE_NAME
 #define NODE_NAME "default_node_name"
+#endif
+
+#ifndef BRIDGE_NAME
+#define BRIDGE_NAME "default_bridge_name"
+#endif
+
+#ifndef DEBUG
+#define DEBUG 0
 #endif

@@ -1,0 +1,1 @@
+enum msg_types { MEASUREMENTS, summer, autumn, winter };
