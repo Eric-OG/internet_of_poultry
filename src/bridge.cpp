@@ -1,7 +1,6 @@
 #include <Arduino.h>
 #include <PubSubClient.h>
 #include <WiFiClient.h>
-#include <WiFiClientSecure.h>
 #include <painlessMesh.h>
 #include "configs.h"
 #include "const.h"
@@ -10,9 +9,8 @@
 // Function prototypes
 void meshReceiveCallback(const uint32_t &from, const String &msg);
 void meshChangeConnCallback();
-void mqttReceiveCallback(char *topic, byte *payload, unsigned int length);
+void mqttReceiveCallback(char *topic, uint8_t *payload, unsigned int length);
 void checkIpChange();
-IPAddress getlocalIP();
 String jsonify_topology();
 void publish_topology();
 
@@ -24,7 +22,7 @@ namedMesh mesh;
 String node_name = BRIDGE_NAME;
 
 void setup() {
-  // ---- Serial configs ----
+  // ---- General configs ----
   Serial.begin(BAUD_RATE);
 
   // ---- Mesh configs ----
@@ -48,7 +46,7 @@ void loop() {
 }
 
 void checkIpChange() {
-  IPAddress current_local_ip = getlocalIP();
+  IPAddress current_local_ip = IPAddress(mesh.getStationIP());
 
   if (bridge_IP != current_local_ip) {
     bridge_IP = current_local_ip;
@@ -66,8 +64,6 @@ void checkIpChange() {
     }
   }
 }
-
-IPAddress getlocalIP() { return IPAddress(mesh.getStationIP()); }
 
 void meshReceiveCallback(const uint32_t &from, const String &msg) {
   StaticJsonDocument<256> doc;

@@ -61,3 +61,11 @@
 #ifndef MQTT_DEBUG
 #define MQTT_DEBUG 0
 #endif
+
+#ifndef DHT_PIN
+#define DHT_PIN 7
+#endif
+
+#ifndef DHT_TYPE
+#define DHT_TYPE DHT11
+#endif

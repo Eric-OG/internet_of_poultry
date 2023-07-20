@@ -1,4 +1,5 @@
 #include <Arduino.h>
+#include <DHT.h>
 #include <painlessMesh.h>
 #include "configs.h"
 #include "const.h"
@@ -9,25 +10,34 @@ typedef struct Measurements {
   float humidity;
   float luminosity;
   bool hazardous_gas_warning;
+  int number_of_readings;
 } Measurements;
 
 // Function prototypes
 void meshReceiveCallback(const uint32_t &from, const String &msg);
 void meshReceiveNamedCallback(const String &from, const String &msg);
 void meshChangeConnCallback();
-Measurements readSensors();
+void resetMeasurements();
 String serializeMeasurements(Measurements meas);
+
+// Tasks
+Task readSensors;
+Task sendMeasurementsToBridge;
 
 // Global variables
 Scheduler scheduler;
 namedMesh mesh;
 Task sendMeasurementsToBridge;
+DHT dht(DHT_PIN, DHT_TYPE);
 String node_name = NODE_NAME;
 String bridge_name = BRIDGE_NAME;
+Measurements latest_average_measures;
 
 void setup() {
-  // ---- Serial configs ----
+  // ---- General configs ----
   Serial.begin(BAUD_RATE);
+  dht.begin();
+  resetMeasurements();
 
   // ---- Mesh configs ----
   mesh.setDebugMsgTypes(ERROR | DEBUG | CONNECTION | COMMUNICATION | REMOTE);
@@ -41,25 +51,39 @@ void setup() {
 
   // ---- Tasks configs ----
   scheduler.addTask(sendMeasurementsToBridge);
+  scheduler.addTask(readSensors);
   sendMeasurementsToBridge.enable();
+  readSensors.enable();
 }
 
 void loop() { mesh.update(); }
 
-Task sendMeasurementsToBridge(TASK_SECOND * 10, TASK_FOREVER, []() {
-  Measurements meas = readSensors();
-  String msg = serializeMeasurements(meas);
+Task sendMeasurementsToBridge(TASK_SECOND * 30, TASK_FOREVER, []() {
+  String msg = serializeMeasurements(latest_average_measures);
   mesh.sendSingle(bridge_name, msg);
+  resetMeasurements();
 });
 
-Measurements readSensors() {
-  Measurements meas;
-  meas.temperature = 23.1;
-  meas.humidity = 82.3;
-  meas.luminosity = 103.0;
-  meas.hazardous_gas_warning = false;
-  return meas;
-};
+Task readSensors(TASK_SECOND * 5, TASK_FOREVER, []() {
+  int n = latest_average_measures.number_of_readings + 1;
+
+  // latest_average_measures.temperature += dht.readTemperature() / n;
+  // latest_average_measures.humidity += dht.readHumidity() / n;
+  latest_average_measures.temperature += 21;
+  latest_average_measures.humidity += 23;
+  latest_average_measures.luminosity = 105;
+  latest_average_measures.hazardous_gas_warning = false;
+
+  latest_average_measures.number_of_readings = n;
+});
+
+void resetMeasurements() {
+  latest_average_measures.temperature = 0;
+  latest_average_measures.humidity = 0;
+  latest_average_measures.luminosity = 0;
+  latest_average_measures.hazardous_gas_warning = false;
+  latest_average_measures.number_of_readings = 0;
+}
 
 String serializeMeasurements(Measurements meas) {
   StaticJsonDocument<256> doc;
@@ -80,4 +104,4 @@ void meshReceiveNamedCallback(const String &from, const String &msg) {
   Log(DEBUG, "Received message from %u, msg: %s\n", from, msg.c_str());
 }
 
-void meshChangeConnCallback() { Log(DEBUG, "Changed connections!"); }
+void meshChangeConnCallback() { Log(DEBUG, "Changed connections!\n"); }
