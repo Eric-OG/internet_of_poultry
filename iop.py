@@ -23,15 +23,19 @@ class MeshGraph:
 
     def _recursive_graph_parser(self, node: Dict):
         node_id = str(node["nodeId"])
-        label = self._name_map.get(node_id)
         is_root = bool(node.get("root"))
         neighbor_nodes = node.get("subs")
-        self._mesh_graph.add_node(node_id.zfill(10), label=label, is_root=is_root)
+
+        node_id_padded = node_id.zfill(10)
+        node_name = self._name_map.get(node_id)
+        label = node_name if node_name else node_id_padded
+
+        self._mesh_graph.add_node(node_id_padded, label=label, is_root=is_root)
 
         if neighbor_nodes:
             self._mesh_graph.add_edges_from(
                 [
-                    (node_id.zfill(10), str(neighbor["nodeId"]).zfill(10))
+                    (node_id_padded, str(neighbor["nodeId"]).zfill(10))
                     for neighbor in neighbor_nodes
                 ]
             )
@@ -87,7 +91,7 @@ def _on_connect(client, userdata, flags, rc):
 
 def _on_message(client, userdata, msg):
     mesh_topology = json.loads(msg.payload.decode("utf-8"))
-    mesh_tree_root = mesh_topology["node_tree"]
+    mesh_tree_root = mesh_topology["mesh_tree"]
     name_map = mesh_topology["name_map"]
     mesh_graph.update_graph(mesh_tree_root=mesh_tree_root, name_map=name_map)
 

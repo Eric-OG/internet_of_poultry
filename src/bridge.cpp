@@ -7,10 +7,12 @@
 
 // Function prototypes
 void meshReceiveCallback(const uint32_t &from, const String &msg);
+void meshChangeConnCallback();
 void mqttReceiveCallback(char *topic, byte *payload, unsigned int length);
 void checkIpChange();
 IPAddress getlocalIP();
 String jsonify_topology();
+void publish_topology();
 
 // Global variables
 IPAddress myIP(0, 0, 0, 0);
@@ -28,6 +30,7 @@ void setup() {
   // Use the same channel for mesh and for network (AP_SSID)
   mesh.init(MESH_NAME, MESH_PASSWORD, MESH_PORT, WIFI_AP_STA, MESH_CHANNEL);
   mesh.onReceive(&meshReceiveCallback);
+  mesh.onChangedConnections(&meshChangeConnCallback);
   mesh.stationManual(AP_SSID, AP_PASSWORD);
   mesh.setHostname(NODE_NAME);
   mesh.setRoot(true);          // Bridge node, should (in most cases) be a root node.
@@ -50,6 +53,7 @@ void checkIpChange() {
 
     if (mqttClient.connect(MESH_NAME)) {
       mqttClient.publish(DEBUG_TOPIC, "Ready!");
+      publish_topology();
       mqttClient.subscribe(TOPOLOGY_REQUEST);
     }
   }
@@ -62,15 +66,21 @@ void meshReceiveCallback(const uint32_t &from, const String &msg) {
   mqttClient.publish(DEBUG_TOPIC, msg.c_str());
 }
 
+void meshChangeConnCallback() { publish_topology(); }
+
 void mqttReceiveCallback(char *topic, uint8_t *payload, unsigned int length) {
   Serial.println("MQTT message received");
   Serial.println("topic is: " + String(topic));
 
   if (String(topic) == String(TOPOLOGY_REQUEST)) {
-    String topology_json = jsonify_topology();
-    Serial.println(topology_json);
-    mqttClient.publish(TOPOLOGY_RESPONSE, topology_json.c_str());
+    publish_topology();
   }
+}
+
+void publish_topology() {
+  String topology_json = jsonify_topology();
+  Serial.println(topology_json);
+  mqttClient.publish(TOPOLOGY_RESPONSE, topology_json.c_str());
 }
 
 String jsonify_topology() {
