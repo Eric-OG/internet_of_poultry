@@ -1,9 +1,11 @@
 #include <Arduino.h>
+#include <ArduinoJson.h>
 #include <PubSubClient.h>
 #include <WiFiClient.h>
 #include <painlessMesh.h>
 #include "configs.h"
 #include "const.h"
+#include "cudp.h"
 #include "namedMesh.h"
 
 // Function prototypes
@@ -11,7 +13,8 @@ void meshReceiveCallback(const uint32_t &from, const String &msg);
 void meshChangeConnCallback();
 void mqttReceiveCallback(char *topic, uint8_t *payload, unsigned int length);
 void checkIpChange();
-String jsonify_topology();
+void publish_measurements(const uint32_t &origin, JsonObject *app_data);
+String serialize_topology();
 void publish_topology();
 
 // Global variables
@@ -20,6 +23,7 @@ WiFiClient wifiClient;
 PubSubClient mqttClient(MQTT_BROKER, MQTT_PORT, mqttReceiveCallback, wifiClient);
 namedMesh mesh;
 String node_name = BRIDGE_NAME;
+CUDP cudp;
 
 void setup() {
   // ---- General configs ----
@@ -50,14 +54,11 @@ void checkIpChange() {
 
   if (bridge_IP != current_local_ip) {
     bridge_IP = current_local_ip;
-    Log(DEBUG, "Bridge local IP is %s \n", bridge_IP.toString());
+    String msg = "Ready! Bridge local IP is %s" + bridge_IP.toString();
+    Log(DEBUG, msg.c_str());
 
     if (mqttClient.connect(MESH_NAME)) {
-      if (MQTT_DEBUG) {
-        String msg = "Ready! Bridge local IP is %s" + bridge_IP.toString();
-        mqttClient.publish(DEBUG_TOPIC, "Ready! Bridge local IP is %s \n",
-                           bridge_IP.toString());
-      }
+      if (MQTT_DEBUG) mqttClient.publish(DEBUG_TOPIC, msg.c_str());
 
       mqttClient.subscribe(TOPOLOGY_REQUEST);
       publish_topology();
@@ -66,36 +67,45 @@ void checkIpChange() {
 }
 
 void meshReceiveCallback(const uint32_t &from, const String &msg) {
-  StaticJsonDocument<256> doc;
-  deserializeJson(doc, msg);
-  doc["nodeId"] = from;
+  JsonObject app_data;
+  Log(DEBUG, "Received message from %u, msg: %s \n", from, msg.c_str());
 
-  uint32_t message_type = doc["msg_type"];
-  if (message_type == MEASUREMENTS) {
-    mqttClient.publish(MEASUREMENTS_TOPIC, (doc.as<String>()).c_str());
-  }
+  bool unpack_successful = cudp.unpackData(msg, &app_data);
+  if (!unpack_successful) Log(DEBUG, "Package discarded due to CUDP CRC check\n");
 
-  Log(DEBUG, "Received message from %u, msg: %s\n", from, msg.c_str());
-  mqttClient.publish(MEASUREMENTS_TOPIC, msg.c_str());
+  short message_type = app_data["msg_type"];
+  if (message_type == MEASUREMENTS) publish_measurements(from, &app_data);
 }
 
 void meshChangeConnCallback() { publish_topology(); }
 
 void mqttReceiveCallback(char *topic, uint8_t *payload, unsigned int length) {
-  Log(DEBUG, "MQTT message received: %s \n", String(*payload));
+  char *cleanPayload = (char *)malloc(length + 1);
+  memcpy(cleanPayload, payload, length);
+  cleanPayload[length] = '\0';
+  String msg = String(cleanPayload);
+  free(cleanPayload);
 
-  if (String(topic) == String(TOPOLOGY_REQUEST)) {
+  Log(DEBUG, "MQTT message received: %s \n", msg);
+  if (String(topic) == TOPOLOGY_REQUEST) {
     publish_topology();
   }
 }
 
+void publish_measurements(const uint32_t &origin, JsonObject *app_data) {
+  String app_data_str;
+  (*app_data)["nodeId"] = origin;
+  serializeJson(*app_data, app_data_str);
+  mqttClient.publish(MEASUREMENTS_TOPIC, app_data_str.c_str());
+}
+
 void publish_topology() {
-  String topology_json = jsonify_topology();
+  String topology_json = serialize_topology();
   mqttClient.publish(TOPOLOGY_RESPONSE, topology_json.c_str());
   Log(DEBUG, "Mesh topology is: %s \n", topology_json);
 }
 
-String jsonify_topology() {
+String serialize_topology() {
   DynamicJsonDocument root_doc(2048);
   JsonObject mesh_tree = root_doc.createNestedObject("mesh_tree");
   JsonObject name_map = root_doc.createNestedObject("name_map");
