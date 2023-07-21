@@ -2,9 +2,9 @@
 #include <ArduinoJson.h>
 #include <DHT.h>
 #include <painlessMesh.h>
+#include "ChickenUDP.h"
 #include "configs.h"
 #include "const.h"
-#include "cudp.h"
 #include "namedMesh.h"
 
 typedef struct Measurements {
@@ -20,10 +20,10 @@ void meshReceiveCallback(const uint32_t &from, const String &msg);
 void meshReceiveNamedCallback(const String &from, const String &msg);
 void meshChangeConnCallback();
 void resetMeasurements();
-void sendAppData(JsonObject app_data, String destination);
+void sendAppData(DataJson *app_data, String destination);
 void readSensors();
 void sendMeasurementsToBridge();
-JsonObject serializeMeasurements(Measurements meas);
+void serializeMeasurements(DataJson *app_data);
 
 // Tasks
 Task readSensorsTask(TASK_SECOND * 10, TASK_FOREVER, &readSensors);
@@ -36,12 +36,12 @@ DHT dht(DHT_PIN, DHT_TYPE);
 String node_name = NODE_NAME;
 String bridge_name = BRIDGE_NAME;
 Measurements latest_average_measures;
-CUDP cudp;
+ChickenUDP cudp;
 
 void setup() {
   // ---- General configs ----
   Serial.begin(BAUD_RATE);
-  dht.begin();
+  // dht.begin();
   resetMeasurements();
 
   // ---- Mesh configs ----
@@ -74,8 +74,9 @@ void meshReceiveNamedCallback(const String &from, const String &msg) {
 void meshChangeConnCallback() { Log(DEBUG, "Changed connections!\n"); }
 
 void sendMeasurementsToBridge() {
-  JsonObject sensor_data = serializeMeasurements(latest_average_measures);
-  sendAppData(sensor_data, BRIDGE_NAME);
+  DataJson app_data;
+  serializeMeasurements(&app_data);
+  sendAppData(&app_data, BRIDGE_NAME);
   resetMeasurements();
 };
 
@@ -90,22 +91,24 @@ void readSensors() {
   latest_average_measures.hazardous_gas_warning = false;
 
   latest_average_measures.number_of_readings = n;
+
+  Log(DEBUG, "Sensor data:\n\ttemp:%.1f\n\thum:%.1f\n\tlum:%.1f\n\tgas:%d\n",
+      latest_average_measures.temperature, latest_average_measures.humidity,
+      latest_average_measures.luminosity, latest_average_measures.hazardous_gas_warning);
 };
 
-void sendAppData(JsonObject app_data, String destination) {
+void sendAppData(DataJson *app_data, String destination) {
   String cudp_packet = cudp.packageData(app_data);
   mesh.sendSingle(destination, cudp_packet);
 }
 
-JsonObject serializeMeasurements(Measurements meas) {
-  StaticJsonDocument<256> app_doc;
-  JsonObject app_data = app_doc.createNestedObject("data");
-  app_data["temperature"] = meas.temperature;
-  app_data["humidity"] = meas.humidity;
-  app_data["luminosity"] = meas.luminosity;
-  app_data["hazardous_gas_warning"] = meas.hazardous_gas_warning;
-  app_doc["msg_type"] = MEASUREMENTS;
-  return app_doc.as<JsonObject>();
+void serializeMeasurements(DataJson *app_data) {
+  JsonObject meas_json = (*app_data).createNestedObject("data");
+  meas_json["temperature"] = latest_average_measures.temperature;
+  meas_json["humidity"] = latest_average_measures.humidity;
+  meas_json["luminosity"] = latest_average_measures.luminosity;
+  meas_json["hazardous_gas_warning"] = latest_average_measures.hazardous_gas_warning;
+  (*app_data)["msg_type"] = MEASUREMENTS;
 }
 
 void resetMeasurements() {
@@ -114,4 +117,5 @@ void resetMeasurements() {
   latest_average_measures.luminosity = 0;
   latest_average_measures.hazardous_gas_warning = false;
   latest_average_measures.number_of_readings = 0;
+  Log(DEBUG, "Resetting measurements!\n");
 }

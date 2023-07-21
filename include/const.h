@@ -1,1 +1,3 @@
-enum msg_types { MEASUREMENTS, summer, autumn, winter };
+using DataJson = StaticJsonDocument<256>;
+
+enum msg_types { MEASUREMENTS };
