@@ -1,11 +1,6 @@
+
 from typing import Dict, List
-import json
-
 from networkx import Graph
-import paho.mqtt.client as mqtt
-from dash import Dash, html, Input, Output, callback, dcc, State
-import dash_cytoscape as cyto
-
 
 class MeshGraph:
     _mesh_graph: Graph
@@ -56,6 +51,7 @@ class MeshGraph:
                     "label": node_data["label"],
                     "root": node_data["is_root"],
                 },
+                'grabbable': False
             }
             for node_id, node_data in self._mesh_graph.nodes(data=True)
         ]
@@ -82,67 +78,3 @@ class MeshGraph:
     @property
     def has_been_updated(self):
         return self._has_been_updated
-
-
-def _on_connect(client, userdata, flags, rc):
-    print("Connected with result code " + str(rc))
-    client.subscribe("internet-of-poultry/topology_response")
-
-
-def _on_message(client, userdata, msg):
-    mesh_topology = json.loads(msg.payload.decode("utf-8"))
-    mesh_tree_root = mesh_topology["mesh_tree"]
-    name_map = mesh_topology["name_map"]
-    mesh_graph.update_graph(mesh_tree_root=mesh_tree_root, name_map=name_map)
-
-
-app = Dash(__name__)
-
-
-mesh_graph = MeshGraph()
-
-
-app.layout = html.Div(
-    html.Div(
-        [
-            cyto.Cytoscape(
-                id="mesh-topology-graph",
-                elements=[],
-                layout={"name": "breadthfirst", "animate": True},
-                stylesheet=[
-                    {"selector": "node", "style": {"content": "data(label)"}},
-                    {
-                        "selector": "[root > 0]",
-                        "style": {"background-color": "red", "content": "data(label)"},
-                    },
-                ],
-                style={"width": "100%", "height": "750px"},
-            ),
-            dcc.Interval(id="interval-component", interval=5000, n_intervals=0),
-        ]
-    )
-)
-
-
-@callback(
-    Output("mesh-topology-graph", "elements"),
-    Output("mesh-topology-graph", "layout"),
-    State("mesh-topology-graph", "elements"),
-    State("mesh-topology-graph", "layout"),
-    Input("interval-component", "n_intervals"),
-)
-def update_elements(elements, layout, n_intervals):
-    if mesh_graph.has_been_updated:
-        elements, cytoscape_root = mesh_graph.get_cytospace_params()
-        layout["roots"] = cytoscape_root
-    return elements, layout
-
-
-if __name__ == "__main__":
-    client = mqtt.Client()
-    client.on_connect = _on_connect
-    client.on_message = _on_message
-    client.connect("broker.hivemq.com", 1883)
-    client.loop_start()
-
-    app.run(debug=True)
