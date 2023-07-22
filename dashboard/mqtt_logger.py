@@ -22,9 +22,9 @@ class MqttLogger:
         className = "m-0 p-2 fs-5 text-wrap"
         match origin:
             case "dash":
-                style["background-color"] = "rgba(101, 168, 209, 0.7)"
+                style["background-color"] = "rgba(101, 168, 209, 0.8)"
             case "mesh":
-                style["background-color"] = "rgba(90, 204, 139, 0.7)"
+                style["background-color"] = "rgba(90, 204, 139, 0.8)"
 
         self._logs.append(html.Pre([header_str, sep_str, msg_str], className=className, style=style))
         self._has_been_updated = True

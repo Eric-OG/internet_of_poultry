@@ -9,33 +9,40 @@ import dash_bootstrap_components as dbc
 import consts
 from mesh_graph import MeshGraph
 from mqtt_logger import MqttLogger
+from mesh_controller import MeshController
 from sensor_reader import SensorReader
 from styles import stylesheet
 
 
 def _on_connect(client, userdata, flags, rc):
     print("Connected with result code " + str(rc))
-    client.subscribe("internet-of-poultry/#")
+    client.subscribe(consts.ROOT_TOPIC)
 
 
 def _on_message(client, userdata, msg):
-    json_payload = json.loads(msg.payload.decode("utf-8")) if msg.payload else None
-    logger.log_message(msg=json_payload, topic=msg.topic)
+    mesh_control.reset_time_since_last_msg()
 
-    print(msg.topic)
+    json_payload = json.loads(msg.payload.decode("utf-8")) if msg.payload else None
+    mqtt_logger.log_message(msg=json_payload, topic=msg.topic)
 
     match msg.topic:
+        case consts.ACK_CONN_TOPIC:
+            mesh_name = json_payload["mesh_name"]
+            mesh_network = json_payload["mesh_network"]
+            mesh_control.update_status(mesh_name=mesh_name, network_name=mesh_network)
+
         case consts.TOPOLOGY_RESPONSE_TOPIC:
-            print(json_payload)
             mesh_tree_root = json_payload["mesh_tree"]
             name_map = json_payload["name_map"]
             mesh_graph.update_graph(mesh_tree_root=mesh_tree_root, name_map=name_map)
-        case "internet-of-poultry/measurements":
+
+        case consts.MEASUREMENTS_TOPIC:
             sensors.save_measurements(json_payload)
 
 
 mesh_graph = MeshGraph()
-logger = MqttLogger()
+mesh_control = MeshController()
+mqtt_logger = MqttLogger()
 sensors = SensorReader()
 client = mqtt.Client()
 
@@ -64,6 +71,36 @@ app.layout = dbc.Container(
                                     id="topology-btn",
                                     className="me-2",
                                 ),
+                                html.P("Nome da mesh: ", id="mesh-name"),
+                                dbc.Row(
+                                    [
+                                        html.P(
+                                            "SSID da rede conectada: ",
+                                            id="conn-name",
+                                            style={
+                                                "margin-left": 40,
+                                                "display": "inline-block",
+                                            },
+                                        ),
+                                        html.P(
+                                            "Status da conexão: ",
+                                            style={"display": "inline-block"},
+                                        ),
+                                        dbc.Badge(
+                                            "Desconectado",
+                                            id="conn-status-badge",
+                                            color="danger",
+                                            pill=True,
+                                            className="me-1",
+                                            style={"display": "inline-block"},
+                                        ),
+                                    ],
+                                    style={
+                                        "display": "flex",
+                                        "flex-direction": "row",
+                                        "background-color": "red",
+                                    },
+                                ),
                             ]
                         ),
                         justify="start",
@@ -83,7 +120,7 @@ app.layout = dbc.Container(
                 [
                     html.H3("Logs de mensagens", className="py-2 px-3"),
                     html.Div(
-                        id="logs-stack", style={"overflowY": "auto", 'flex-grow': 1}
+                        id="logs-stack", style={"overflowY": "auto", "flex-grow": 1}
                     ),
                 ],
                 className="mx-0 px-0",
@@ -94,7 +131,7 @@ app.layout = dbc.Container(
                     "width": "100%",
                     "display": "flex",
                     "flex-direction": "column",
-                    "background-color": "rgba(87, 87, 87, 0.25)"
+                    "background-color": "rgba(87, 87, 87, 0.3)",
                 },
             ),
         ),
@@ -159,9 +196,25 @@ def force_topology_update(n_clicks):
     Input("interval-component", "n_intervals"),
 )
 def update_logger(children, n_intervals):
-    if logger.has_been_updated:
-        children = logger.get_logs()
+    if mqtt_logger.has_been_updated:
+        children = mqtt_logger.get_logs()
     return children
+
+
+@callback(
+    Output("mesh-name", "children"),
+    Output("conn-name", "children"),
+    Output("conn-status-badge", "children"),
+    Output("conn-status-badge", "color"),
+    Input("interval-component", "n_intervals"),
+)
+def update_logger(n_intervals):
+    mesh_control.check_conn and client.publish(consts.CHECK_CONN_TOPIC)
+    mesh_name, network_name, conn_status = mesh_control.get_status()
+    mesh_name_str = "Nome da mesh: " + mesh_name
+    conn_name_str = "SSID da rede conectada:  " + network_name
+    color_str = "success" if conn_status == consts.ConnStatuses.CONNECTED else "danger"
+    return mesh_name_str, conn_name_str, conn_status, color_str
 
 
 if __name__ == "__main__":
