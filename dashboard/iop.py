@@ -2,7 +2,7 @@ from typing import List, Dict
 import json
 import paho.mqtt.client as mqtt
 import plotly.express as px
-from dash import Dash, html, Input, Output, callback, dcc, State
+from dash import dcc, html, Dash, callback, Input, Output, State
 import dash_cytoscape as cyto
 import dash_bootstrap_components as dbc
 
@@ -46,7 +46,9 @@ mqtt_logger = MqttLogger()
 sensors = SensorReader()
 client = mqtt.Client()
 
-app = Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
+app = Dash(
+    __name__, external_stylesheets=[dbc.themes.BOOTSTRAP, dbc.icons.FONT_AWESOME]
+)
 
 node_checklist = dbc.Checklist(id="node-selector", options=[], value=[], inline=True)
 
@@ -55,84 +57,110 @@ app.layout = dbc.Container(
         dbc.Row(
             dbc.Col(
                 [
-                    html.H1("Internet of Poultry"),
-                    html.Hr(),
-                    node_checklist,
-                    dbc.Row(
-                        dbc.Col(
-                            [
-                                cyto.Cytoscape(
-                                    id="mesh-topology-graph",
-                                    elements=[],
-                                    className="w-50 border",
-                                ),
-                                dbc.Button(
-                                    "Atualizar topologia da mesh",
-                                    id="topology-btn",
-                                    className="me-2",
-                                ),
-                                html.P("Nome da mesh: ", id="mesh-name"),
-                                dbc.Row(
-                                    [
-                                        html.P(
-                                            "SSID da rede conectada: ",
-                                            id="conn-name",
-                                            style={
-                                                "margin-left": 40,
-                                                "display": "inline-block",
-                                            },
-                                        ),
-                                        html.P(
-                                            "Status da conexão: ",
-                                            style={"display": "inline-block"},
-                                        ),
-                                        dbc.Badge(
-                                            "Desconectado",
-                                            id="conn-status-badge",
-                                            color="danger",
-                                            pill=True,
-                                            className="me-1",
-                                            style={"display": "inline-block"},
-                                        ),
-                                    ],
-                                    style={
-                                        "display": "flex",
-                                        "flex-direction": "row",
-                                        "background-color": "red",
-                                    },
-                                ),
-                            ]
-                        ),
-                        justify="start",
-                        align="center",
-                        className="px-3",
+                    html.Div(
+                        [
+                            cyto.Cytoscape(
+                                id="mesh-topology-graph",
+                                elements=[],
+                                className="w-100",
+                            ),
+                            dbc.Button(
+                                html.I(className="fa-solid fa-lg fa-arrows-rotate"),
+                                id="topology-btn",
+                                className="p-3",
+                                style={"width": "fit-content"},
+                            ),
+                        ],
+                        className="border d-flex flex-column align-items-end",
                     ),
-                    dcc.Graph(id="temp-readings", figure=px.line()),
-                    dcc.Graph(id="hum-readings", figure=px.line()),
-                    dcc.Graph(id="lum-readings", figure=px.line()),
+                    dbc.Badge(
+                        consts.ConnStatuses.DISCONNECTED,
+                        id="conn-status-badge",
+                        color="danger",
+                        className="w-100 p-2 mt-2 mb-3",
+                    ),
+                    html.Div(
+                        [
+                            html.Div(
+                                [
+                                    html.P(
+                                        "SSID da rede conectada: ",
+                                        id="conn-name-txt",
+                                        className="mb-0 fs-5",
+                                    ),
+                                    dbc.Badge(
+                                        id="conn-name",
+                                        color="light",
+                                        text_color="primary",
+                                        className="mx-2 fs-6",
+                                    ),
+                                ],
+                                className="d-flex align-items-center",
+                            ),
+                            html.Div(
+                                [
+                                    html.P(
+                                        "Nome da mesh: ",
+                                        id="mesh-name-txt",
+                                        className="mb-0 fs-5",
+                                    ),
+                                    dbc.Badge(
+                                        id="mesh-name",
+                                        color="light",
+                                        text_color="primary",
+                                        className="mx-2 fs-6",
+                                    ),
+                                ],
+                                className="d-flex align-items-center",
+                            ),
+                        ],
+                        className="d-flex justify-content-around",
+                    ),
                 ],
-                style={"paddingBottom": "20%"},
+                width=8,
             ),
-            className="p-2",
+            justify="center",
+            align="center",
+            className="pt-4 pb-2",
         ),
         dbc.Row(
             dbc.Col(
                 [
-                    html.H3("Logs de mensagens", className="py-2 px-3"),
+                    node_checklist,
+                    dcc.Graph(id="temp-readings", figure=px.line()),
+                    dcc.Graph(id="hum-readings", figure=px.line()),
+                    dcc.Graph(id="lum-readings", figure=px.line()),
+                ]
+            ),
+            style={"paddingBottom": "20%"},
+        ),
+        dbc.Row(
+            dbc.Col(
+                [
                     html.Div(
-                        id="logs-stack", style={"overflowY": "auto", "flex-grow": 1}
+                        [
+                            html.H3("Logs de mensagens", className="py-2 px-3"),
+                            dbc.Button(
+                                "Mostrar logs", id="log-btn", style={"width": "10%"}
+                            ),
+                        ],
+                        className="d-flex justify-content-between",
+                        style={"background-color": "rgba(87, 87, 87, 0.2)"},
+                    ),
+                    html.Div(
+                        id="logs-stack",
+                        style={"overflowY": "auto", "flex-grow": 1},
+                        hidden=True,
                     ),
                 ],
-                className="mx-0 px-0",
+                width=12,
+                className="mx-0 px-0 d-flex flex-column",
                 style={
                     "position": "fixed",
                     "bottom": 0,
-                    "height": "35%",
-                    "width": "100%",
-                    "display": "flex",
-                    "flex-direction": "column",
                     "background-color": "rgba(87, 87, 87, 0.3)",
                 },
+                id="logs-container",
             ),
         ),
         dcc.Interval(id="interval-component", interval=1000, n_intervals=0),
@@ -184,12 +212,6 @@ def update_cytoscape(elements, layout, n_intervals):
     return elements, layout, stylesheet["cytoscape_params"]
 
 
-@callback(Output("hidden-output-dump", "hidden"), Input("topology-btn", "n_clicks"))
-def force_topology_update(n_clicks):
-    n_clicks and client.publish(consts.TOPOLOGY_REQUEST_TOPIC)
-    return True
-
-
 @callback(
     Output("logs-stack", "children"),
     State("logs-stack", "children"),
@@ -199,6 +221,31 @@ def update_logger(children, n_intervals):
     if mqtt_logger.has_been_updated:
         children = mqtt_logger.get_logs()
     return children
+
+
+@callback(Output("hidden-output-dump", "hidden"), Input("topology-btn", "n_clicks"))
+def force_topology_update(n_clicks):
+    n_clicks and client.publish(consts.TOPOLOGY_REQUEST_TOPIC)
+    return True
+
+
+@callback(
+    Output("logs-stack", "hidden"),
+    Output("logs-container", "style"),
+    Output("log-btn", "children"),
+    State("logs-container", "style"),
+    Input("log-btn", "n_clicks"),
+)
+def toggle_logs_display(style, n_clicks):
+    if not (n_clicks and n_clicks % 2):
+        hidden = True
+        style.get("height") and style.pop("height")
+        text = "Mostrar logs"
+    else:
+        hidden = False
+        style["height"] = "35%"
+        text = "Esconder logs"
+    return hidden, style, text
 
 
 @callback(
@@ -211,10 +258,8 @@ def update_logger(children, n_intervals):
 def update_logger(n_intervals):
     mesh_control.check_conn and client.publish(consts.CHECK_CONN_TOPIC)
     mesh_name, network_name, conn_status = mesh_control.get_status()
-    mesh_name_str = "Nome da mesh: " + mesh_name
-    conn_name_str = "SSID da rede conectada:  " + network_name
     color_str = "success" if conn_status == consts.ConnStatuses.CONNECTED else "danger"
-    return mesh_name_str, conn_name_str, conn_status, color_str
+    return mesh_name, network_name, conn_status, color_str
 
 
 if __name__ == "__main__":

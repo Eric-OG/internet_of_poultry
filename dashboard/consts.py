@@ -8,5 +8,5 @@ TOPOLOGY_RESPONSE_TOPIC = 'internet-of-poultry/mesh/topology-response'
 MEASUREMENTS_TOPIC = '"internet-of-poultry/mesh/measurements"'
 
 class ConnStatuses(StrEnum):
-    CONNECTED = "CONNECTED"
-    DISCONNECTED = "DISCONNECTED"
+    CONNECTED = "CONECTADO"
+    DISCONNECTED = "DESCONECTADO"
