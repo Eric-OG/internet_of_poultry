@@ -1,5 +1,6 @@
 #include <ArduinoJson.h>
 #include <CRC32.h>
+#include "const.h"
 
 class ChickenUDP {
  protected:

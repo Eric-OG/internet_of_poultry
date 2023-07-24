@@ -3,19 +3,21 @@
 #include <PubSubClient.h>
 #include <WiFiClient.h>
 #include <painlessMesh.h>
+#include <time.h>
 #include "ChickenUDP.h"
 #include "configs.h"
-#include "const.h"
 #include "namedMesh.h"
 
 // Function prototypes
 void meshReceiveCallback(const uint32_t &from, const String &msg);
 void meshChangeConnCallback();
 void mqttReceiveCallback(char *topic, uint8_t *payload, unsigned int length);
-void checkIpChange();
+void checkNetworkChange();
 void publish_measurements(const uint32_t &origin, JsonObject *app_data);
 String serialize_topology();
 void publish_topology();
+void configLocalTime();
+void timestamp(char *timestamp_str);
 
 // Global variables
 IPAddress bridge_IP(0, 0, 0, 0);
@@ -24,6 +26,7 @@ PubSubClient mqttClient(MQTT_BROKER, MQTT_PORT, mqttReceiveCallback, wifiClient)
 namedMesh mesh;
 String node_name = BRIDGE_NAME;
 ChickenUDP cudp;
+struct tm *timeinfo;
 
 void setup() {
   // ---- General configs ----
@@ -46,17 +49,18 @@ void setup() {
 void loop() {
   mesh.update();
   mqttClient.loop();
-  checkIpChange();
+  checkNetworkChange();
 }
 
-void checkIpChange() {
+void checkNetworkChange() {
   IPAddress current_local_ip = IPAddress(mesh.getStationIP());
 
   if (bridge_IP != current_local_ip) {
     bridge_IP = current_local_ip;
+    configLocalTime();
+
     String msg = "Ready! Bridge local IP is " + bridge_IP.toString();
     Log(DEBUG, msg.c_str());
-
     if (mqttClient.connect(MESH_NAME)) {
       if (MQTT_DEBUG) mqttClient.publish(DEBUG_TOPIC, msg.c_str());
 
@@ -66,12 +70,22 @@ void checkIpChange() {
   }
 }
 
+void configLocalTime() {
+  time_t rawtime;
+  configTime(GMT_OFFSET_SECS, DST_OFFSET_SECS, NTP_SERVER);
+  time(&rawtime);
+  timeinfo = localtime(&rawtime);
+}
+
 void meshReceiveCallback(const uint32_t &from, const String &msg) {
   JsonObject app_data;
   Log(DEBUG, "Received message from %u, msg: %s \n", from, msg.c_str());
 
   bool unpack_successful = cudp.unpackData(msg, &app_data);
-  if (!unpack_successful) Log(ERROR, "Package discarded due to CUDP CRC check\n");
+  if (!unpack_successful) {
+    Log(ERROR, "Package discarded due to CUDP CRC check\n");
+    return;
+  }
 
   short message_type = app_data["msg_type"];
   if (message_type == MEASUREMENTS) publish_measurements(from, &app_data);
@@ -94,7 +108,11 @@ void mqttReceiveCallback(char *topic, uint8_t *payload, unsigned int length) {
 
 void publish_measurements(const uint32_t &origin, JsonObject *app_data) {
   String app_data_str;
-  (*app_data)["nodeId"] = origin;
+  char timestamp_str[20];
+  timestamp(timestamp_str);
+
+  (*app_data)["node_id"] = origin;
+  (*app_data)["timestamp"] = String(timestamp_str);
   serializeJson(*app_data, app_data_str);
   mqttClient.publish(MEASUREMENTS_TOPIC, app_data_str.c_str());
 }
@@ -118,4 +136,10 @@ String serialize_topology() {
   name_map.set(name_map_json);
 
   return root_doc.as<String>();
+}
+
+void timestamp(char *timestamp_str) {
+  sprintf(timestamp_str, "%d-%02d-%02d %02d:%02d:%02d", timeinfo->tm_year,
+          timeinfo->tm_mon, timeinfo->tm_mday, timeinfo->tm_hour, timeinfo->tm_min,
+          timeinfo->tm_sec);
 }

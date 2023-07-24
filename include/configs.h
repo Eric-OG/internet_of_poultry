@@ -35,15 +35,15 @@
 #endif
 
 #ifndef TOPOLOGY_REQUEST
-#define TOPOLOGY_REQUEST "internet-of-poultry/topology_request"
+#define TOPOLOGY_REQUEST "internet-of-poultry/dash/topology-request"
 #endif
 
 #ifndef TOPOLOGY_RESPONSE
-#define TOPOLOGY_RESPONSE "internet-of-poultry/topology_response"
+#define TOPOLOGY_RESPONSE "internet-of-poultry/mesh/topology-response"
 #endif
 
 #ifndef MEASUREMENTS_TOPIC
-#define MEASUREMENTS_TOPIC "internet-of-poultry/measurements"
+#define MEASUREMENTS_TOPIC "internet-of-poultry/mesh/measurements"
 #endif
 
 #ifndef BAUD_RATE
@@ -68,4 +68,16 @@
 
 #ifndef DHT_TYPE
 #define DHT_TYPE DHT11
+#endif
+
+#ifndef NTP_SERVER
+#define NTP_SERVER "south-america.pool.ntp.org"
+#endif
+
+#ifndef GMT_OFFSET_SECS
+#define GMT_OFFSET_SECS 10800
+#endif
+
+#ifndef DST_OFFSET_SECS
+#define DST_OFFSET_SECS 0
 #endif
