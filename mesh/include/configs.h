@@ -34,6 +34,18 @@
 #define DEBUG_TOPIC "internet-of-poultry/debug"
 #endif
 
+#ifndef DASH_ROOT_TOPIC
+#define DASH_ROOT_TOPIC "internet-of-poultry/dash/#"
+#endif
+
+#ifndef CONN_CHECK_TOPIC
+#define CONN_CHECK_TOPIC "internet-of-poultry/dash/hello"
+#endif
+
+#ifndef CONN_ACK_TOPIC
+#define CONN_ACK_TOPIC "internet-of-poultry/mesh/hello"
+#endif
+
 #ifndef TOPOLOGY_REQUEST
 #define TOPOLOGY_REQUEST "internet-of-poultry/dash/topology-request"
 #endif

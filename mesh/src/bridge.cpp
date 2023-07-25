@@ -8,6 +8,18 @@
 #include "configs.h"
 #include "namedMesh.h"
 
+#ifndef AWS_ROOT_CA
+#define AWS_ROOT_CA ""
+#endif
+
+#ifndef AWS_DEVICE_CERT
+#define AWS_DEVICE_CERT ""
+#endif
+
+#ifndef AWS_PRIVATE_KEY
+#define AWS_PRIVATE_KEY ""
+#endif
+
 // Function prototypes
 void meshReceiveCallback(const uint32_t &from, const String &msg);
 void meshChangeConnCallback();
@@ -18,6 +30,7 @@ String serialize_topology();
 void publish_topology();
 void configLocalTime();
 void timestamp(char *timestamp_str);
+void ack_connection();
 
 // Global variables
 IPAddress bridge_IP(0, 0, 0, 0);
@@ -62,12 +75,24 @@ void checkNetworkChange() {
     String msg = "Ready! Bridge local IP is " + bridge_IP.toString();
     Log(DEBUG, msg.c_str());
     if (mqttClient.connect(MESH_NAME)) {
-      if (MQTT_DEBUG) mqttClient.publish(DEBUG_TOPIC, msg.c_str());
-
-      mqttClient.subscribe(TOPOLOGY_REQUEST);
+      mqttClient.subscribe(DASH_ROOT_TOPIC);
+      ack_connection();
       publish_topology();
     }
   }
+
+  Log(DEBUG, "%d-%02d-%02d %02d:%02d:%02d",
+    timeinfo->tm_year,
+    timeinfo->tm_mon,
+    timeinfo->tm_mday,
+    timeinfo->tm_hour,
+    timeinfo->tm_min,
+    timeinfo->tm_sec
+  );
+
+  Log(DEBUG, AWS_ROOT_CA);
+  Log(DEBUG, AWS_DEVICE_CERT);
+  Log(DEBUG, AWS_PRIVATE_KEY);
 }
 
 void configLocalTime() {
@@ -101,7 +126,11 @@ void mqttReceiveCallback(char *topic, uint8_t *payload, unsigned int length) {
   free(cleanPayload);
 
   Log(DEBUG, "MQTT message received: %s \n", msg);
-  if (String(topic) == TOPOLOGY_REQUEST) {
+  String topic_str = String(topic);
+  if (topic_str == CONN_CHECK_TOPIC) {
+    ack_connection();
+  }
+  else if (topic_str == TOPOLOGY_REQUEST) {
     publish_topology();
   }
 }
@@ -142,4 +171,8 @@ void timestamp(char *timestamp_str) {
   sprintf(timestamp_str, "%d-%02d-%02d %02d:%02d:%02d", timeinfo->tm_year,
           timeinfo->tm_mon, timeinfo->tm_mday, timeinfo->tm_hour, timeinfo->tm_min,
           timeinfo->tm_sec);
+}
+
+void ack_connection() {
+  mqttClient.publish(CONN_ACK_TOPIC, "{\"mesh_name\":\"" MESH_NAME "\",\"mesh_network\":\"" AP_SSID "\"}");
 }
