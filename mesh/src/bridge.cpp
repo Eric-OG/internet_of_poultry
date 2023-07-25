@@ -1,45 +1,30 @@
 #include <Arduino.h>
 #include <ArduinoJson.h>
 #include <PubSubClient.h>
-#include <WiFiClient.h>
+#include <WiFiClientSecure.h>
 #include <painlessMesh.h>
 #include <time.h>
 #include "ChickenUDP.h"
 #include "configs.h"
 #include "namedMesh.h"
-
-#ifndef AWS_ROOT_CA
-#define AWS_ROOT_CA ""
-#endif
-
-#ifndef AWS_DEVICE_CERT
-#define AWS_DEVICE_CERT ""
-#endif
-
-#ifndef AWS_PRIVATE_KEY
-#define AWS_PRIVATE_KEY ""
-#endif
+#include "secrets.h"
 
 // Function prototypes
 void meshReceiveCallback(const uint32_t &from, const String &msg);
 void meshChangeConnCallback();
 void mqttReceiveCallback(char *topic, uint8_t *payload, unsigned int length);
 void checkNetworkChange();
-void publish_measurements(const uint32_t &origin, JsonObject *app_data);
 String serialize_topology();
 void publish_topology();
-void configLocalTime();
-void timestamp(char *timestamp_str);
 void ack_connection();
 
 // Global variables
 IPAddress bridge_IP(0, 0, 0, 0);
-WiFiClient wifiClient;
-PubSubClient mqttClient(MQTT_BROKER, MQTT_PORT, mqttReceiveCallback, wifiClient);
+WiFiClientSecure net = WiFiClientSecure();
+PubSubClient mqttClient(net);
 namedMesh mesh;
 String node_name = BRIDGE_NAME;
 ChickenUDP cudp;
-struct tm *timeinfo;
 
 void setup() {
   // ---- General configs ----
@@ -70,36 +55,21 @@ void checkNetworkChange() {
 
   if (bridge_IP != current_local_ip) {
     bridge_IP = current_local_ip;
-    configLocalTime();
 
-    String msg = "Ready! Bridge local IP is " + bridge_IP.toString();
+    net.setCACert(AWS_ROOT_CA);
+    net.setCertificate(AWS_DEVICE_CERT);
+    net.setPrivateKey(AWS_PRIVATE_KEY);
+    mqttClient.setServer(AWS_IOT_ENDPOINT, 8883);
+
+    String msg = "Ready! Bridge local IP is " + bridge_IP.toString() + "\n";
     Log(DEBUG, msg.c_str());
-    if (mqttClient.connect(MESH_NAME)) {
+
+    if (mqttClient.connect(THING_NAME)) {
       mqttClient.subscribe(DASH_ROOT_TOPIC);
       ack_connection();
       publish_topology();
     }
   }
-
-  Log(DEBUG, "%d-%02d-%02d %02d:%02d:%02d",
-    timeinfo->tm_year,
-    timeinfo->tm_mon,
-    timeinfo->tm_mday,
-    timeinfo->tm_hour,
-    timeinfo->tm_min,
-    timeinfo->tm_sec
-  );
-
-  Log(DEBUG, AWS_ROOT_CA);
-  Log(DEBUG, AWS_DEVICE_CERT);
-  Log(DEBUG, AWS_PRIVATE_KEY);
-}
-
-void configLocalTime() {
-  time_t rawtime;
-  configTime(GMT_OFFSET_SECS, DST_OFFSET_SECS, NTP_SERVER);
-  time(&rawtime);
-  timeinfo = localtime(&rawtime);
 }
 
 void meshReceiveCallback(const uint32_t &from, const String &msg) {
@@ -113,7 +83,12 @@ void meshReceiveCallback(const uint32_t &from, const String &msg) {
   }
 
   short message_type = app_data["msg_type"];
-  if (message_type == MEASUREMENTS) publish_measurements(from, &app_data);
+  if (message_type == MEASUREMENTS) {
+    String app_data_str;
+    app_data["node_id"] = from;
+    serializeJson(app_data, app_data_str);
+    mqttClient.publish(MEASUREMENTS_TOPIC, app_data_str.c_str());
+  }
 }
 
 void meshChangeConnCallback() { publish_topology(); }
@@ -129,21 +104,9 @@ void mqttReceiveCallback(char *topic, uint8_t *payload, unsigned int length) {
   String topic_str = String(topic);
   if (topic_str == CONN_CHECK_TOPIC) {
     ack_connection();
-  }
-  else if (topic_str == TOPOLOGY_REQUEST) {
+  } else if (topic_str == TOPOLOGY_REQUEST) {
     publish_topology();
   }
-}
-
-void publish_measurements(const uint32_t &origin, JsonObject *app_data) {
-  String app_data_str;
-  char timestamp_str[20];
-  timestamp(timestamp_str);
-
-  (*app_data)["node_id"] = origin;
-  (*app_data)["timestamp"] = String(timestamp_str);
-  serializeJson(*app_data, app_data_str);
-  mqttClient.publish(MEASUREMENTS_TOPIC, app_data_str.c_str());
 }
 
 void publish_topology() {
@@ -167,12 +130,7 @@ String serialize_topology() {
   return root_doc.as<String>();
 }
 
-void timestamp(char *timestamp_str) {
-  sprintf(timestamp_str, "%d-%02d-%02d %02d:%02d:%02d", timeinfo->tm_year,
-          timeinfo->tm_mon, timeinfo->tm_mday, timeinfo->tm_hour, timeinfo->tm_min,
-          timeinfo->tm_sec);
-}
-
 void ack_connection() {
-  mqttClient.publish(CONN_ACK_TOPIC, "{\"mesh_name\":\"" MESH_NAME "\",\"mesh_network\":\"" AP_SSID "\"}");
+  mqttClient.publish(CONN_ACK_TOPIC, "{\"mesh_name\":\"" MESH_NAME
+                                     "\",\"mesh_network\":\"" AP_SSID "\"}");
 }

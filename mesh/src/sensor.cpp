@@ -4,7 +4,6 @@
 #include <painlessMesh.h>
 #include "ChickenUDP.h"
 #include "configs.h"
-#include "const.h"
 #include "namedMesh.h"
 
 typedef struct Measurements {
