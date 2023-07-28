@@ -1,6 +1,4 @@
 from typing import List, Dict
-import json
-import paho.mqtt.client as mqtt
 import plotly.express as px
 from dash import dcc, html, Dash, callback, Input, Output, State
 import dash_cytoscape as cyto
@@ -11,40 +9,17 @@ from mesh_graph import MeshGraph
 from mqtt_logger import MqttLogger
 from mesh_controller import MeshController
 from sensor_reader import SensorReader
+from mqtt_client import MqttClient
 from styles import stylesheet
-
-
-def _on_connect(client, userdata, flags, rc):
-    print("Connected with result code " + str(rc))
-    client.subscribe(consts.ROOT_TOPIC)
-
-
-def _on_message(client, userdata, msg):
-    mesh_control.reset_time_since_last_msg()
-
-    json_payload = json.loads(msg.payload.decode("utf-8")) if msg.payload else None
-    mqtt_logger.log_message(msg=json_payload, topic=msg.topic)
-
-    match msg.topic:
-        case consts.ACK_CONN_TOPIC:
-            mesh_name = json_payload["mesh_name"]
-            mesh_network = json_payload["mesh_network"]
-            mesh_control.update_status(mesh_name=mesh_name, network_name=mesh_network)
-
-        case consts.TOPOLOGY_RESPONSE_TOPIC:
-            mesh_tree_root = json_payload["mesh_tree"]
-            name_map = json_payload["name_map"]
-            mesh_graph.update_graph(mesh_tree_root=mesh_tree_root, name_map=name_map)
-
-        case consts.MEASUREMENTS_TOPIC:
-            sensors.save_measurements(json_payload)
 
 
 mesh_graph = MeshGraph()
 mesh_control = MeshController()
 mqtt_logger = MqttLogger()
 sensors = SensorReader()
-client = mqtt.Client()
+client = MqttClient(
+    logger=mqtt_logger, controller=mesh_control, graph=mesh_graph, sensors=sensors
+)
 
 app = Dash(
     __name__, external_stylesheets=[dbc.themes.BOOTSTRAP, dbc.icons.FONT_AWESOME]
@@ -263,9 +238,5 @@ def update_logger(n_intervals):
 
 
 if __name__ == "__main__":
-    client.on_connect = _on_connect
-    client.on_message = _on_message
-    client.connect("broker.hivemq.com", 1883)
-    client.loop_start()
-
+    client.connect()
     app.run(debug=True)
