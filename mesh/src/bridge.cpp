@@ -29,6 +29,9 @@ void setup() {
   // ---- General configs ----
   Serial.begin(BAUD_RATE);
 
+  // ---- Mqtt client configs ----
+  mqttClient.setCallback(&mqttReceiveCallback);
+
   // ---- Mesh configs ----
   mesh.setDebugMsgTypes(ERROR | DEBUG | CONNECTION | COMMUNICATION | REMOTE);
   // Use the same channel for mesh and for network (AP_SSID)
