@@ -3,7 +3,6 @@
 #include <PubSubClient.h>
 #include <WiFiClientSecure.h>
 #include <painlessMesh.h>
-#include <time.h>
 #include "ChickenUDP.h"
 #include "configs.h"
 #include "namedMesh.h"
@@ -82,10 +81,11 @@ void meshReceiveCallback(const uint32_t &from, const String &msg) {
     return;
   }
 
+  app_data["node_id"] = from;
   short message_type = app_data["msg_type"];
+
   if (message_type == MEASUREMENTS) {
     String app_data_str;
-    app_data["node_id"] = from;
     serializeJson(app_data, app_data_str);
     mqttClient.publish(MEASUREMENTS_TOPIC, app_data_str.c_str());
   }

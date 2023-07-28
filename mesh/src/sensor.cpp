@@ -6,12 +6,16 @@
 #include "configs.h"
 #include "namedMesh.h"
 
+#define LDR_PIN A0
+#define MQ_PIN D4
+#define DHT_PIN D5
+
 typedef struct Measurements {
   float temperature;
   float humidity;
   float luminosity;
-  bool hazardous_gas_warning;
-  int number_of_readings;
+  float hazardous_gas_warning;
+  float number_of_readings;
 } Measurements;
 
 // Function prototypes
@@ -25,7 +29,7 @@ void sendMeasurementsToBridge();
 void serializeMeasurements(DataJson *app_data);
 
 // Tasks
-Task readSensorsTask(TASK_SECOND * 10, TASK_FOREVER, &readSensors);
+Task readSensorsTask(TASK_SECOND * 5, TASK_FOREVER, &readSensors);
 Task sendMeasurementsTask(TASK_SECOND * 30, TASK_FOREVER, &sendMeasurementsToBridge);
 
 // Global variables
@@ -40,7 +44,7 @@ ChickenUDP cudp;
 void setup() {
   // ---- General configs ----
   Serial.begin(BAUD_RATE);
-  // dht.begin();
+  dht.begin();
   resetMeasurements();
 
   // ---- Mesh configs ----
@@ -79,34 +83,38 @@ void sendMeasurementsToBridge() {
   resetMeasurements();
 };
 
+void sendAppData(DataJson *app_data, String destination) {
+  String cudp_packet = cudp.packageData(app_data);
+  mesh.sendSingle(destination, cudp_packet);
+}
+
 void readSensors() {
-  int n = latest_average_measures.number_of_readings + 1;
-
-  // latest_average_measures.temperature += dht.readTemperature() / n;
-  // latest_average_measures.humidity += dht.readHumidity() / n;
-  latest_average_measures.temperature += 21;
-  latest_average_measures.humidity += 23;
-  latest_average_measures.luminosity = 105;
-  latest_average_measures.hazardous_gas_warning = false;
-
-  latest_average_measures.number_of_readings = n;
+  latest_average_measures.temperature += dht.readTemperature();
+  latest_average_measures.humidity += dht.readHumidity();
+  latest_average_measures.luminosity += (float(analogRead(LDR_PIN)) / float(1023));
+  latest_average_measures.hazardous_gas_warning += digitalRead(MQ_PIN);
+  // Mock
+  // latest_average_measures.temperature += 21;
+  // latest_average_measures.humidity += 23;
+  // latest_average_measures.luminosity += 105;
+  // latest_average_measures.hazardous_gas_warning += 0;
+  // latest_average_measures.number_of_readings += 1;
 
   Log(DEBUG, "Sensor data:\n\ttemp:%.1f\n\thum:%.1f\n\tlum:%.1f\n\tgas:%d\n",
       latest_average_measures.temperature, latest_average_measures.humidity,
       latest_average_measures.luminosity, latest_average_measures.hazardous_gas_warning);
 };
 
-void sendAppData(DataJson *app_data, String destination) {
-  String cudp_packet = cudp.packageData(app_data);
-  mesh.sendSingle(destination, cudp_packet);
-}
-
 void serializeMeasurements(DataJson *app_data) {
   JsonObject meas_json = (*app_data).createNestedObject("data");
-  meas_json["temperature"] = latest_average_measures.temperature;
-  meas_json["humidity"] = latest_average_measures.humidity;
-  meas_json["luminosity"] = latest_average_measures.luminosity;
-  meas_json["hazardous_gas_warning"] = latest_average_measures.hazardous_gas_warning;
+  float num_of_reads = latest_average_measures.number_of_readings;
+
+  meas_json["temperature"] = latest_average_measures.temperature / num_of_reads;
+  meas_json["humidity"] = latest_average_measures.humidity / num_of_reads;
+  meas_json["luminosity"] = latest_average_measures.luminosity / num_of_reads;
+  meas_json["hazardous_gas_warning"] =
+      latest_average_measures.hazardous_gas_warning / num_of_reads;
+
   (*app_data)["msg_type"] = MEASUREMENTS;
 }
 
@@ -114,7 +122,7 @@ void resetMeasurements() {
   latest_average_measures.temperature = 0;
   latest_average_measures.humidity = 0;
   latest_average_measures.luminosity = 0;
-  latest_average_measures.hazardous_gas_warning = false;
+  latest_average_measures.hazardous_gas_warning = 0;
   latest_average_measures.number_of_readings = 0;
   Log(DEBUG, "Resetting measurements!\n");
 }

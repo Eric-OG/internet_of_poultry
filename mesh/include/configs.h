@@ -74,22 +74,6 @@
 #define MQTT_DEBUG 0
 #endif
 
-#ifndef DHT_PIN
-#define DHT_PIN 7
-#endif
-
 #ifndef DHT_TYPE
 #define DHT_TYPE DHT11
-#endif
-
-#ifndef NTP_SERVER
-#define NTP_SERVER "south-america.pool.ntp.org"
-#endif
-
-#ifndef GMT_OFFSET_SECS
-#define GMT_OFFSET_SECS 10800
-#endif
-
-#ifndef DST_OFFSET_SECS
-#define DST_OFFSET_SECS 0
 #endif
