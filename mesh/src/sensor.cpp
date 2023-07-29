@@ -93,11 +93,6 @@ void readSensors() {
   latest_average_measures.humidity += dht.readHumidity();
   latest_average_measures.luminosity += (float(analogRead(LDR_PIN)) / float(1023));
   latest_average_measures.hazardous_gas_warning += digitalRead(MQ_PIN);
-  // Mock
-  // latest_average_measures.temperature += 21;
-  // latest_average_measures.humidity += 23;
-  // latest_average_measures.luminosity += 105;
-  // latest_average_measures.hazardous_gas_warning += 0;
   latest_average_measures.number_of_readings += 1;
 
   Log(DEBUG, "Sensor data:\n\ttemp:%.1f\n\thum:%.1f\n\tlum:%.1f\n\tgas:%.1f\n",
