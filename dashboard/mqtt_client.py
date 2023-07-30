@@ -6,7 +6,6 @@ from awsiot import mqtt_connection_builder
 from mqtt_logger import MqttLogger
 from mesh_controller import MeshController
 from mesh_graph import MeshGraph
-from sensor_reader import SensorReader
 import consts
 
 
@@ -28,15 +27,12 @@ class MqttClient:
         logger: MqttLogger,
         controller: MeshController,
         graph: MeshGraph,
-        sensors: SensorReader,
     ):
         self._logger = logger
         self._controller = controller
         self._graph = graph
-        self._sensors = sensors
 
     def connect(self):
-        print(f"Starting connection process")
         event_loop_group = io.EventLoopGroup(1)
         host_resolver = io.DefaultHostResolver(event_loop_group)
         client_bootstrap = io.ClientBootstrap(event_loop_group, host_resolver)
@@ -55,7 +51,7 @@ class MqttClient:
         connect_future = self._conn.connect()
         # Future.result() waits until a result is available
         connect_future.result()
-        print("Connected!")
+        print("Connected to MQTT!")
 
         subscribe_future, _ = self._conn.subscribe(
             consts.ROOT_TOPIC,
@@ -65,7 +61,6 @@ class MqttClient:
                 self._logger,
                 self._controller,
                 self._graph,
-                self._sensors,
             ),
         )
 
@@ -84,7 +79,6 @@ class MqttClient:
         logger: MqttLogger,
         controller: MeshController,
         graph: MeshGraph,
-        sensors: SensorReader,
         topic: str,
         payload: bytes,
         dup: bool,
@@ -106,6 +100,3 @@ class MqttClient:
                 mesh_tree_root = json_payload["mesh_tree"]
                 name_map = json_payload["name_map"]
                 graph.update_graph(mesh_tree_root=mesh_tree_root, name_map=name_map)
-
-            case consts.MEASUREMENTS_TOPIC:
-                sensors.save_measurements(json_payload)

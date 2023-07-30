@@ -17,9 +17,7 @@ mesh_graph = MeshGraph()
 mesh_control = MeshController()
 mqtt_logger = MqttLogger()
 sensors = SensorReader()
-client = MqttClient(
-    logger=mqtt_logger, controller=mesh_control, graph=mesh_graph, sensors=sensors
-)
+client = MqttClient(logger=mqtt_logger, controller=mesh_control, graph=mesh_graph)
 
 app = Dash(
     __name__, external_stylesheets=[dbc.themes.BOOTSTRAP, dbc.icons.FONT_AWESOME]
@@ -105,6 +103,7 @@ app.layout = dbc.Container(
                     dcc.Graph(id="temp-readings", figure=px.line()),
                     dcc.Graph(id="hum-readings", figure=px.line()),
                     dcc.Graph(id="lum-readings", figure=px.line()),
+                    dcc.Graph(id="gas-readings", figure=px.line()),
                 ]
             ),
             style={"paddingBottom": "20%"},
@@ -156,20 +155,26 @@ def update_node_checklist(elements: List[Dict]):
     for el in elements:
         el_data = el.get("data", {})
         node_label = el_data.get("label")
-        if node_label:
+        if node_label and not el_data.get("root"):
             new_options.append({"label": node_label, "value": el_data.get("id")})
     return new_options
 
 
-# @callback(
-#     Output("sensor-readings", "figure"),
-#     State("sensor-readings", "figure"),
-#     Input("interval-component", "n_intervals"),
-# )
-# def update_graph(figure, n_intervals):
-#     if sensors.has_been_updated:
-#         figure = sensors.get_figure()
-#     return figure
+@callback(
+    Output("temp-readings", "figure"),
+    Output("hum-readings", "figure"),
+    Output("lum-readings", "figure"),
+    Output("gas-readings", "figure"),
+    Input("node-selector", "value"),
+    Input("interval-component", "n_intervals"),
+)
+def update_graph(node_id_list, n_intervals):
+    if not (n_intervals and (n_intervals % 60)):
+        sensors.read_database()
+
+    node_id_list = [int(node_id) for node_id in node_id_list]
+    figures = sensors.get_figures(node_id_list)
+    return figures
 
 
 @callback(
@@ -181,9 +186,9 @@ def update_node_checklist(elements: List[Dict]):
     Input("interval-component", "n_intervals"),
 )
 def update_cytoscape(elements, layout, n_intervals):
-    if mesh_graph.has_been_updated:
+    if mesh_graph.has_been_updated or not n_intervals:
         elements, cytoscape_root = mesh_graph.get_cytospace_params()
-        layout = {"name": "breadthfirst", "animate": True, "roots": cytoscape_root}
+        layout = {"name": "circle", "animate": True, "roots": cytoscape_root}
     return elements, layout, stylesheet["cytoscape_params"]
 
 

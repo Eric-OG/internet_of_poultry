@@ -25,12 +25,12 @@ class MeshGraph:
         node_name = self._name_map.get(node_id)
         label = node_name if node_name else node_id_padded
 
-        self._mesh_graph.add_node(node_id_padded, label=label, is_root=is_root)
+        self._mesh_graph.add_node(node_id, label=label, is_root=is_root)
 
         if neighbor_nodes:
             self._mesh_graph.add_edges_from(
                 [
-                    (node_id_padded, str(neighbor["nodeId"]).zfill(10))
+                    (node_id, str(neighbor["nodeId"]))
                     for neighbor in neighbor_nodes
                 ]
             )
