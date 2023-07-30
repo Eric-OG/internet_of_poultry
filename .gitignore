@@ -6,5 +6,6 @@
 *.env
 *.pyo
 *.pyc
+.venv
 secrets.h
 certificates

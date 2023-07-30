@@ -193,8 +193,7 @@ def update_cytoscape(elements, layout, n_intervals):
     Input("interval-component", "n_intervals"),
 )
 def update_logger(children, n_intervals):
-    if mqtt_logger.has_been_updated:
-        children = mqtt_logger.get_logs()
+    children = mqtt_logger.get_logs() if n_intervals else None
     return children
 
 
@@ -230,7 +229,7 @@ def toggle_logs_display(style, n_clicks):
     Output("conn-status-badge", "color"),
     Input("interval-component", "n_intervals"),
 )
-def update_logger(n_intervals):
+def update_mesh_params(n_intervals):
     mesh_control.check_conn and client.publish(consts.CHECK_CONN_TOPIC)
     mesh_name, network_name, conn_status = mesh_control.get_status()
     color_str = "success" if conn_status == consts.ConnStatuses.CONNECTED else "danger"
