@@ -1,5 +1,6 @@
 from typing import Dict
 from datetime import datetime
+from dateutil import tz
 from json import loads
 
 from boto3.session import Session
@@ -46,6 +47,7 @@ def lambda_handler(event: Dict, context: LambdaContext):
     humidity = event["humidity"]
     luminosity = event["luminosity"]
     hazardous_gas_warning = event["hazardous_gas_warning"]
+    timestamp = datetime.now(tz=tz.gettz("America/Sao_Paulo")).replace(tzinfo=None)
 
     with conn.cursor() as cur:
         cur.execute(
@@ -62,7 +64,7 @@ def lambda_handler(event: Dict, context: LambdaContext):
                 humidity,
                 luminosity,
                 hazardous_gas_warning,
-                datetime.now(),
+                timestamp,
             ),
         )
 
