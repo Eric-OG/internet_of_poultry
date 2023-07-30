@@ -72,9 +72,12 @@ class MeshGraph:
         self._has_been_updated = True
 
     def get_cytospace_params(self):
-        self._has_been_updated = False
         return self._cytoscape_elements, self._cytoscape_root
 
     @property
     def has_been_updated(self):
         return self._has_been_updated
+    
+    @has_been_updated.setter
+    def has_been_updated(self, state):
+        self._has_been_updated = state

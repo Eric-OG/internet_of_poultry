@@ -13,6 +13,34 @@ from mqtt_client import MqttClient
 from styles import stylesheet
 
 
+def line_graph(title: str, graph_id: str, dropdown_id: str):
+    return html.Div(
+        [
+            html.H1(title),
+            html.Div(
+                [
+                    dcc.Dropdown(
+                        id=dropdown_id,
+                        options=[],
+                        value=[],
+                        multi=True,
+                        style={"width": "100%", "font-size": 20},
+                    ),
+                ],
+                className="mt-3",
+                style={"width": "60%"},
+            ),
+            dcc.Graph(
+                id=graph_id,
+                figure=px.line(),
+                className="w-100 mb-5",
+                style={"height": "55vh"},
+            ),
+        ],
+        className="w-100 mb-5 d-flex flex-column align-items-center",
+    )
+
+
 mesh_graph = MeshGraph()
 mesh_control = MeshController()
 mqtt_logger = MqttLogger()
@@ -23,7 +51,6 @@ app = Dash(
     __name__, external_stylesheets=[dbc.themes.BOOTSTRAP, dbc.icons.FONT_AWESOME]
 )
 
-node_checklist = dbc.Checklist(id="node-selector", options=[], value=[], inline=True)
 
 app.layout = dbc.Container(
     [
@@ -94,19 +121,34 @@ app.layout = dbc.Container(
             ),
             justify="center",
             align="center",
-            className="pt-4 pb-2",
+            className="pt-5 pb-2",
+        ),
+        dbc.Row(
+            dbc.Col(
+                html.Hr(),
+                width=11,
+            ),
+            justify="center",
+            align="center",
+            className="pt-4 pb-5",
         ),
         dbc.Row(
             dbc.Col(
                 [
-                    node_checklist,
-                    dcc.Graph(id="temp-readings", figure=px.line()),
-                    dcc.Graph(id="hum-readings", figure=px.line()),
-                    dcc.Graph(id="lum-readings", figure=px.line()),
-                    dcc.Graph(id="gas-readings", figure=px.line()),
-                ]
+                    line_graph("Temperatura", "temp-readings", "selector-temp"),
+                    line_graph("Umidade", "hum-readings", "selector-hum"),
+                    line_graph("Luminosidade", "lum-readings", "selector-lum"),
+                    line_graph(
+                        "Concentração de gases tóxicos",
+                        "gas-readings",
+                        "selector-gas",
+                    ),
+                ],
+                width=10,
             ),
-            style={"paddingBottom": "20%"},
+            justify="center",
+            align="center",
+            style={"padding-bottom": "20%"},
         ),
         dbc.Row(
             dbc.Col(
@@ -119,7 +161,7 @@ app.layout = dbc.Container(
                             ),
                         ],
                         className="d-flex justify-content-between",
-                        style={"background-color": "rgba(87, 87, 87, 0.2)"},
+                        style={"background-color": "rgba(187, 187, 187, 0.8)"},
                     ),
                     html.Div(
                         id="logs-stack",
@@ -132,12 +174,12 @@ app.layout = dbc.Container(
                 style={
                     "position": "fixed",
                     "bottom": 0,
-                    "background-color": "rgba(87, 87, 87, 0.3)",
+                    "background-color": "rgba(155, 155, 155, 0.9)",
                 },
                 id="logs-container",
             ),
         ),
-        dcc.Interval(id="interval-component", interval=1000, n_intervals=0),
+        dcc.Interval(id="interval-component", interval=3000, n_intervals=0),
         html.P(id="hidden-output-dump", hidden=True),
     ],
     fluid=True,
@@ -146,35 +188,92 @@ app.layout = dbc.Container(
 
 
 @callback(
-    Output("node-selector", "options"),
+    Output("selector-temp", "options"),
+    Output("selector-temp", "value"),
+    Output("selector-hum", "options"),
+    Output("selector-hum", "value"),
+    Output("selector-lum", "options"),
+    Output("selector-lum", "value"),
+    Output("selector-gas", "options"),
+    Output("selector-gas", "value"),
+    State("selector-temp", "value"),
+    State("selector-hum", "value"),
+    State("selector-lum", "value"),
+    State("selector-gas", "value"),
     Input("mesh-topology-graph", "elements"),
 )
-def update_node_checklist(elements: List[Dict]):
+def update_node_checklist(
+    temp_values: List[int],
+    hum_values: List[int],
+    lum_values: List[int],
+    gas_values: List[int],
+    elements: List[Dict],
+):
     new_options = []
+    new_values = []
 
     for el in elements:
         el_data = el.get("data", {})
         node_label = el_data.get("label")
+        el_id = el_data.get("id")
         if node_label and not el_data.get("root"):
-            new_options.append({"label": node_label, "value": el_data.get("id")})
-    return new_options
+            new_options.append({"label": node_label, "value": el_id})
+            new_values.append(el_id)
+
+    if mesh_graph.has_been_updated:
+        mesh_graph.has_been_updated = False
+        return tuple([new_options, new_values] * 4)
+
+    return [
+        new_options,
+        temp_values,
+        new_options,
+        hum_values,
+        new_options,
+        lum_values,
+        new_options,
+        gas_values,
+    ]
 
 
 @callback(
     Output("temp-readings", "figure"),
-    Output("hum-readings", "figure"),
-    Output("lum-readings", "figure"),
-    Output("gas-readings", "figure"),
-    Input("node-selector", "value"),
+    Input("selector-temp", "value"),
     Input("interval-component", "n_intervals"),
 )
-def update_graph(node_id_list, n_intervals):
-    if not (n_intervals and (n_intervals % 60)):
-        sensors.read_database()
-
+def update_temp_graph(node_id_list, n_intervals):
     node_id_list = [int(node_id) for node_id in node_id_list]
-    figures = sensors.get_figures(node_id_list)
-    return figures
+    return sensors.get_figure(node_id_list, "temperature")
+
+
+@callback(
+    Output("hum-readings", "figure"),
+    Input("selector-hum", "value"),
+    Input("interval-component", "n_intervals"),
+)
+def update_hum_graph(node_id_list, n_intervals):
+    node_id_list = [int(node_id) for node_id in node_id_list]
+    return sensors.get_figure(node_id_list, "humidity")
+
+
+@callback(
+    Output("lum-readings", "figure"),
+    Input("selector-lum", "value"),
+    Input("interval-component", "n_intervals"),
+)
+def update_lum_graph(node_id_list, n_intervals):
+    node_id_list = [int(node_id) for node_id in node_id_list]
+    return sensors.get_figure(node_id_list, "luminosity")
+
+
+@callback(
+    Output("gas-readings", "figure"),
+    Input("selector-gas", "value"),
+    Input("interval-component", "n_intervals"),
+)
+def update_gas_graph(node_id_list, n_intervals):
+    node_id_list = [int(node_id) for node_id in node_id_list]
+    return sensors.get_figure(node_id_list, "hazardous gas warning")
 
 
 @callback(
@@ -206,6 +305,14 @@ def update_logger(children, n_intervals):
 def force_topology_update(n_clicks):
     n_clicks and client.publish(consts.TOPOLOGY_REQUEST_TOPIC)
     return True
+
+
+@callback(
+    Output("hidden-output-dump", "children"), Input("interval-component", "n_intervals")
+)
+def update_measurements(n_intervals):
+    if not (n_intervals and (n_intervals % 20)):
+        sensors.read_database()
 
 
 @callback(
