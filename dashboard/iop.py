@@ -14,30 +14,32 @@ from styles import stylesheet
 
 
 def line_graph(title: str, graph_id: str, dropdown_id: str):
-    return html.Div(
-        [
-            html.H1(title),
-            html.Div(
-                [
-                    dcc.Dropdown(
-                        id=dropdown_id,
-                        options=[],
-                        value=[],
-                        multi=True,
-                        style={"width": "100%", "font-size": 20},
-                    ),
-                ],
-                className="mt-3",
-                style={"width": "60%"},
-            ),
-            dcc.Graph(
-                id=graph_id,
-                figure=px.line(),
-                className="w-100 mb-5",
-                style={"height": "55vh"},
-            ),
-        ],
-        className="w-100 mb-5 d-flex flex-column align-items-center",
+    return dcc.Tab(
+        label=title,
+        children=html.Div(
+            [
+                dcc.Graph(
+                    id=graph_id,
+                    figure=px.line(),
+                    className="w-100 mt-4",
+                    style={"height": "55vh"},
+                ),
+                html.Div(
+                    [
+                        dcc.Dropdown(
+                            id=dropdown_id,
+                            options=[],
+                            value=[],
+                            multi=True,
+                            style={"width": "100%", "font-size": 20},
+                        ),
+                    ],
+                    className="mt-3 mb-5",
+                    style={"width": "80%"},
+                ),
+            ],
+            className="w-100 mb-5 d-flex flex-column align-items-center",
+        ),
     )
 
 
@@ -135,20 +137,24 @@ app.layout = dbc.Container(
         dbc.Row(
             dbc.Col(
                 [
-                    line_graph("Temperatura", "temp-readings", "selector-temp"),
-                    line_graph("Umidade", "hum-readings", "selector-hum"),
-                    line_graph("Luminosidade", "lum-readings", "selector-lum"),
-                    line_graph(
-                        "Concentração de gases tóxicos",
-                        "gas-readings",
-                        "selector-gas",
-                    ),
+                    dcc.Tabs(
+                        [
+                            line_graph("Temperatura", "temp-readings", "selector-temp"),
+                            line_graph("Umidade", "hum-readings", "selector-hum"),
+                            line_graph("Luminosidade", "lum-readings", "selector-lum"),
+                            line_graph(
+                                "Concentração de gases tóxicos",
+                                "gas-readings",
+                                "selector-gas",
+                            ),
+                        ]
+                    )
                 ],
                 width=10,
             ),
             justify="center",
             align="center",
-            style={"padding-bottom": "20%"},
+            style={"padding-bottom": "15%"},
         ),
         dbc.Row(
             dbc.Col(

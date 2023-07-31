@@ -64,12 +64,11 @@ class SensorReader:
         self._latest_id_read = records[-1][0] if records else self._latest_id_read
         print("Read database!")
 
-    
     def get_figure(self, node_ids: List[int], meas: str) -> Tuple[go.Figure]:
         filtered_df = self._readings_df[
             self._readings_df["node id"].isin(node_ids)
         ].sort_values(by="timestamp")
 
         figure = px.line(filtered_df, x="timestamp", y=meas, color="node name")
-        figure.update_layout(margin=dict(l=20, r=20, t=20, b=20))
+        figure.update_layout(margin=dict(l=20, r=20, t=20, b=20), uirevision=True)
         return figure
