@@ -6,6 +6,7 @@
 using namespace painlessmesh;
 
 typedef std::function<void(String &from, String &msg)> namedReceivedCallback_t;
+typedef std::function<void()> newNamedConnCallback_t;
 
 class namedMesh : public painlessMesh {
  public:
@@ -23,6 +24,7 @@ class namedMesh : public painlessMesh {
       if (root.containsKey("topic") &&
           String("nameBroadCast").equals(root["topic"].as<String>())) {
         nameMap[from] = root["name"].as<String>();
+        if (userNewNamedConnCallback) userNewNamedConnCallback();
       } else {
         if (userReceivedCallback)
           // If needed send it on to userReceivedCallback
@@ -104,6 +106,9 @@ class namedMesh : public painlessMesh {
   void onReceive(namedReceivedCallback_t onReceive) {
     userNamedReceivedCallback = onReceive;
   }
+  void onNewNamedConnection(newNamedConnCallback_t onNewNamedConn) {
+    userNewNamedConnCallback = onNewNamedConn;
+  }
 
   JsonObject addressToNameJson() {
     DynamicJsonDocument doc(1024);
@@ -120,12 +125,18 @@ class namedMesh : public painlessMesh {
     return nameMapJson;
   }
 
+  String getNameById(uint32_t id_to_search) {
+    if (nameMap.count(id_to_search) > 0) return nameMap[id_to_search];
+    return "";
+  }
+
  protected:
   String nodeName;
   std::map<uint32_t, String> nameMap;
 
   receivedCallback_t userReceivedCallback;
   namedReceivedCallback_t userNamedReceivedCallback;
+  newNamedConnCallback_t userNewNamedConnCallback;
 
   bool nameBroadCastInit = false;
   Task nameBroadCastTask;

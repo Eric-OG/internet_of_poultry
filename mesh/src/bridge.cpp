@@ -43,7 +43,8 @@ void setup() {
   mesh.setName(node_name);
   // ---- Mesh functions ----
   mesh.onReceive(&meshReceiveCallback);
-  mesh.onChangedConnections(&meshChangeConnCallback);
+  mesh.onChangedConnections(&publish_topology);
+  mesh.onNewNamedConnection(&publish_topology);
 }
 
 void loop() {
@@ -76,7 +77,8 @@ void checkNetworkChange() {
 
 void meshReceiveCallback(const uint32_t &from, const String &msg) {
   JsonObject app_data;
-  Log(DEBUG, "Received message from %u, msg: %s \n", from, msg.c_str());
+  String from_node_name = mesh.getNameById(from);
+  Log(DEBUG, "Received message from %s, msg: %s \n", from_node_name.c_str(), msg.c_str());
 
   bool unpack_successful = cudp.unpackData(msg, &app_data);
   if (!unpack_successful) {
@@ -85,6 +87,7 @@ void meshReceiveCallback(const uint32_t &from, const String &msg) {
   }
 
   app_data["node_id"] = from;
+  app_data["node_name"] = from_node_name;
   short message_type = app_data["msg_type"];
 
   if (message_type == MEASUREMENTS) {
@@ -93,8 +96,6 @@ void meshReceiveCallback(const uint32_t &from, const String &msg) {
     mqttClient.publish(MEASUREMENTS_TOPIC, app_data_str.c_str());
   }
 }
-
-void meshChangeConnCallback() { publish_topology(); }
 
 void mqttReceiveCallback(char *topic, uint8_t *payload, unsigned int length) {
   char *cleanPayload = (char *)malloc(length + 1);
