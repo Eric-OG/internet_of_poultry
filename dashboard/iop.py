@@ -349,7 +349,7 @@ def toggle_logs_display(style, n_clicks):
 )
 def update_mesh_params(n_intervals):
     mesh_control.check_conn and client.publish(consts.CHECK_CONN_TOPIC)
-    mesh_name, network_name, conn_status = mesh_control.get_status()
+    mesh_name, network_name, conn_status = mesh_control.get_mesh_status()
     color_str = "success" if conn_status == consts.ConnStatuses.CONNECTED else "danger"
     return mesh_name, network_name, conn_status, color_str
 

@@ -17,17 +17,17 @@ class MeshController:
         self._time_since_last_message = self.MAX_WAIT_TIME - 1
         self._has_been_updated = False
 
-    def update_status(self, mesh_name: str, network_name: str):
+    def refresh_connection_status(self):
+        self._conn_status = ConnStatuses.CONNECTED
+        self._time_since_last_message = 0
+
+    def update_mesh_status(self, mesh_name: str, network_name: str):
         self._mesh_name = mesh_name
         self._network_name = network_name
-        self._conn_status = ConnStatuses.CONNECTED
         self._has_been_updated = True
 
-    def get_status(self):
+    def get_mesh_status(self):
         return self._mesh_name, self._network_name, self._conn_status
-    
-    def reset_time_since_last_msg(self):
-        self._time_since_last_message = 0
 
     @property
     def has_been_updated(self):

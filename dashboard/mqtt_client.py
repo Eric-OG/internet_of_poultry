@@ -86,7 +86,7 @@ class MqttClient:
         retain: bool,
         **kwargs,
     ):
-        controller.reset_time_since_last_msg()
+        controller.refresh_connection_status()
         json_payload = json.loads(payload.decode("utf-8")) if payload else None
         logger.log_message(msg=json_payload, topic=topic)
 
@@ -94,7 +94,7 @@ class MqttClient:
             case consts.ACK_CONN_TOPIC:
                 mesh_name = json_payload["mesh_name"]
                 mesh_network = json_payload["mesh_network"]
-                controller.update_status(mesh_name=mesh_name, network_name=mesh_network)
+                controller.update_mesh_status(mesh_name=mesh_name, network_name=mesh_network)
 
             case consts.TOPOLOGY_RESPONSE_TOPIC:
                 mesh_tree_root = json_payload["mesh_tree"]
