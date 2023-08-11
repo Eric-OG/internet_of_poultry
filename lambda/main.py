@@ -39,7 +39,7 @@ def lambda_handler(event: Dict, context: LambdaContext):
         dbname=db_credentials["dbname"],
         sslmode="require",
     )
-    logger.info("Conected! Event is: " + str(event))
+    logger.info("Connected! Event is: " + str(event))
 
     node_id = event["node_id"]
     node_name = event["node_name"] if event["node_name"] else None
