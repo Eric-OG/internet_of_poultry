@@ -101,3 +101,6 @@ class MqttClient:
                 mesh_tree_root = json_payload["mesh_tree"]
                 name_map = json_payload["name_map"]
                 graph.update_graph(mesh_tree_root=mesh_tree_root, name_map=name_map)
+
+            case consts.MEASUREMENTS_TOPIC:
+                controller.refresh_connection_status()

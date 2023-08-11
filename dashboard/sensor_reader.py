@@ -69,6 +69,6 @@ class SensorReader:
             self._readings_df["node id"].isin(node_ids)
         ].sort_values(by="timestamp")
 
-        figure = px.line(filtered_df, x="timestamp", y=meas, color="node name")
+        figure = px.line(filtered_df, x="timestamp", y=meas, color="node name", markers=True)
         figure.update_layout(margin=dict(l=20, r=20, t=20, b=20), uirevision=True)
         return figure
