@@ -86,15 +86,16 @@ void meshReceiveCallback(const uint32_t &from, const String &msg) {
     return;
   }
 
+  short message_type = app_data["msg_type"];
+  app_data.remove("msg_type");
   app_data["node_id"] = from;
   app_data["node_name"] = from_node_name;
-  short message_type = app_data["msg_type"];
 
-  if (message_type == MEASUREMENTS) {
-    String app_data_str;
-    serializeJson(app_data, app_data_str);
+  String app_data_str;
+  serializeJson(app_data, app_data_str);
+
+  if (message_type == MEASUREMENTS)
     mqttClient.publish(MEASUREMENTS_TOPIC, app_data_str.c_str());
-  }
 }
 
 void mqttReceiveCallback(char *topic, uint8_t *payload, unsigned int length) {

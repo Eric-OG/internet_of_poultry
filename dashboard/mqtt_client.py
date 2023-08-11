@@ -86,17 +86,18 @@ class MqttClient:
         retain: bool,
         **kwargs,
     ):
-        controller.refresh_connection_status()
         json_payload = json.loads(payload.decode("utf-8")) if payload else None
         logger.log_message(msg=json_payload, topic=topic)
 
         match topic:
             case consts.ACK_CONN_TOPIC:
+                controller.refresh_connection_status()
                 mesh_name = json_payload["mesh_name"]
                 mesh_network = json_payload["mesh_network"]
                 controller.update_mesh_status(mesh_name=mesh_name, network_name=mesh_network)
 
             case consts.TOPOLOGY_RESPONSE_TOPIC:
+                controller.refresh_connection_status()
                 mesh_tree_root = json_payload["mesh_tree"]
                 name_map = json_payload["name_map"]
                 graph.update_graph(mesh_tree_root=mesh_tree_root, name_map=name_map)
