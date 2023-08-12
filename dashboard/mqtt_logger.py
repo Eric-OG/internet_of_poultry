@@ -1,4 +1,6 @@
 from typing import Dict, List
+from datetime import datetime
+
 from dash import html
 
 
@@ -13,6 +15,7 @@ class MqttLogger:
     def log_message(self, msg: Dict, topic: str):
         topic_str = topic.split('/', 1)[1]
         origin, endpoint = topic_str.split('/', 1)
+        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
         header_str = topic_str + (':' if msg is not None else '')
         msg_str =  str(msg) if msg is not None else ''
@@ -26,7 +29,8 @@ class MqttLogger:
             case "mesh":
                 style["background-color"] = "rgba(90, 204, 139, 0.8)"
 
-        self._logs.append(html.Pre([header_str, sep_str, msg_str], className=className, style=style))
+        text_content = [html.B(timestamp), "    ", header_str, sep_str, msg_str]
+        self._logs.append(html.Pre(text_content, className=className, style=style))
         self._has_been_updated = True
 
     def get_logs(self) -> List[html.P]:

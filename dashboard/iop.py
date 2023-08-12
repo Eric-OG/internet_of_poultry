@@ -1,4 +1,4 @@
-from typing import List, Dict
+from typing import List
 import plotly.express as px
 from dash import dcc, html, Dash, callback, Input, Output, State
 import dash_cytoscape as cyto
@@ -206,29 +206,23 @@ app.layout = dbc.Container(
     State("selector-hum", "value"),
     State("selector-lum", "value"),
     State("selector-gas", "value"),
-    Input("mesh-topology-graph", "elements"),
+    Input("interval-component", "n_intervals"),
 )
 def update_node_checklist(
     temp_values: List[int],
     hum_values: List[int],
     lum_values: List[int],
     gas_values: List[int],
-    elements: List[Dict],
+    n_intervals: int,
 ):
-    new_options = []
-    new_values = []
+    if not n_intervals:
+        new_values = sensors.get_node_ids()
+        temp_values, hum_values, lum_values, gas_values = [new_values] * 4
 
-    for el in elements:
-        el_data = el.get("data", {})
-        node_label = el_data.get("label")
-        el_id = el_data.get("id")
-        if node_label and not el_data.get("root"):
-            new_options.append({"label": node_label, "value": el_id})
-            new_values.append(el_id)
-
-    if mesh_graph.has_been_updated:
-        mesh_graph.has_been_updated = False
-        return tuple([new_options, new_values] * 4)
+    new_options = [
+        {"label": node["node name"], "value": node["node id"]}
+        for node in sensors.get_nodes()
+    ]
 
     return [
         new_options,
@@ -309,7 +303,9 @@ def update_logger(children, n_intervals):
 
 @callback(Output("hidden-output-dump", "hidden"), Input("topology-btn", "n_clicks"))
 def force_topology_update(n_clicks):
-    n_clicks and client.publish(consts.TOPOLOGY_REQUEST_TOPIC)
+    if n_clicks:
+        client.publish(consts.CHECK_CONN_TOPIC)
+        client.publish(consts.TOPOLOGY_REQUEST_TOPIC)
     return True
 
 
@@ -318,7 +314,7 @@ def force_topology_update(n_clicks):
 )
 def update_measurements(n_intervals):
     if not (n_intervals and (n_intervals % 20)):
-        sensors.read_database()
+        sensors.update_measurements()
 
 
 @callback(
@@ -356,4 +352,4 @@ def update_mesh_params(n_intervals):
 
 if __name__ == "__main__":
     client.connect()
-    app.run(debug=True)
+    app.run(debug=False)

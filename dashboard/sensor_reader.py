@@ -1,4 +1,4 @@
-from typing import List, Tuple
+from typing import List, Dict
 
 from dotenv import dotenv_values
 import pandas as pd
@@ -13,10 +13,6 @@ class SensorReader:
     _has_been_updated: bool
 
     _readings_df: pd.DataFrame
-    _temp_df: pd.DataFrame
-    _hum_df: pd.DataFrame
-    _lum_df: pd.DataFrame
-    _haz_gas_df: pd.DataFrame
     _df_cols_names = [
         "id",
         "node id",
@@ -48,8 +44,9 @@ class SensorReader:
 
         self._readings_df = pd.DataFrame(columns=self._df_cols_names)
         self._latest_id_read = 0
+        self.update_measurements()
 
-    def read_database(self):
+    def update_measurements(self):
         with self._conn.cursor() as cur:
             cur.execute(
                 "SELECT * FROM measurements WHERE id > %s", (self._latest_id_read,)
@@ -62,13 +59,28 @@ class SensorReader:
             [self._readings_df, new_records_df], ignore_index=True
         )
         self._latest_id_read = records[-1][0] if records else self._latest_id_read
-        print("Read database!")
+        print("Read database measurements!")
 
-    def get_figure(self, node_ids: List[int], meas: str) -> Tuple[go.Figure]:
+    def get_figure(self, node_ids: List[int], meas: str) -> go.Figure:
         filtered_df = self._readings_df[
             self._readings_df["node id"].isin(node_ids)
         ].sort_values(by="timestamp")
 
-        figure = px.line(filtered_df, x="timestamp", y=meas, color="node name", markers=True)
+        # Scale adjustment: better to fix in mesh
+        if meas == "hazardous gas warning":
+            filtered_df[meas] = 1 - filtered_df[meas]
+
+        figure = px.line(
+            filtered_df, x="timestamp", y=meas, color="node name", markers=True
+        )
         figure.update_layout(margin=dict(l=20, r=20, t=20, b=20), uirevision=True)
         return figure
+
+    def get_nodes(self) -> List[Dict]:
+        nodes = self._readings_df[["node name", "node id"]].drop_duplicates(
+            subset=["node name"]
+        )
+        return nodes.to_dict(orient="records")
+
+    def get_node_ids(self) -> List[int]:
+        return self._readings_df["node id"].unique()
