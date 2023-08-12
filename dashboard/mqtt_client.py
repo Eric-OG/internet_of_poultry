@@ -67,12 +67,26 @@ class MqttClient:
         subscribe_future.result()
         print(f"Subscribed to {consts.ROOT_TOPIC}")
 
+
     def publish(self, topic: str, message: str = None):
         payload = json.dumps(message) if message else ""
-        publish_future, _ = self._conn.publish(
-            topic=topic, payload=payload, qos=mqtt.QoS.AT_MOST_ONCE
-        )
-        publish_future.result()
+        try:
+            publish_future, _ = self._conn.publish(
+                topic=topic, payload=payload, qos=mqtt.QoS.AT_MOST_ONCE
+            )
+            publish_future.result()
+        except:
+            self._reconnect()
+            publish_future, _ = self._conn.publish(
+                topic=topic, payload=payload, qos=mqtt.QoS.AT_MOST_ONCE
+            )
+            publish_future.result()
+
+    def _reconnect(self):
+        connect_future = self._conn.connect()
+        # Future.result() waits until a result is available
+        connect_future.result()
+        print("Reconnected to MQTT!")
 
     @staticmethod
     def _on_receive(
